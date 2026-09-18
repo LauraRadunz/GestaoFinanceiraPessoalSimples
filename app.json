@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Financas App",
+    "slug": "financas-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "financas-app",
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true },
+    "android": {},
+    "web": { "bundler": "metro" },
+    "plugins": ["expo-router"]
+  }
+}
