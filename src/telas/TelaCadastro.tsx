@@ -27,11 +27,8 @@ export default function TelaCadastro() {
     setCarregando(true);
     try {
       await cadastrarUsuario(nome.trim(), email.trim(), senha);
-      // Navegação explícita: no Expo Router, apenas estar logado não muda
-      // a rota sozinho — é preciso mandar o app para a tela inicial.
       router.replace('/');
-      // Ao cadastrar com sucesso, o Firebase já loga o usuário automaticamente,
-      // e o layout raiz troca para as telas do app.
+
     } catch (erro) {
       mostrarAlerta('Não foi possível cadastrar', traduzirErroAuth(erro));
     } finally {

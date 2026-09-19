@@ -17,8 +17,6 @@ export default function TelaLogin() {
     setCarregando(true);
     try {
       await entrarUsuario(email.trim(), senha);
-      // Navegação explícita: no Expo Router, apenas estar logado não muda
-      // a rota sozinho — é preciso mandar o app para a tela inicial.
       router.replace('/');
     } catch (erro) {
       mostrarAlerta('Não foi possível entrar', traduzirErroAuth(erro));
