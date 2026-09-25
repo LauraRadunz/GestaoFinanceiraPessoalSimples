@@ -9,6 +9,7 @@ export default function Layout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="cadastro" />
         <Stack.Screen name="perfis" />
+        <Stack.Screen name="contas" />
       </Stack>
     </PerfilProvider>
   );

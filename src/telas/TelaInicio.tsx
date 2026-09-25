@@ -6,8 +6,12 @@ import { useUsuarioAtual } from '../hooks/useUsuarioAtual';
 import { usePerfilAtual } from '../contexto/PerfilContexto';
 import { sairUsuario } from '../services/AutenticacaoService';
 import { escutarConvitesPendentes, aceitarConvite, recusarConvite } from '../services/ConviteService';
+import { escutarContas } from '../services/ContaService';
+import { calcularSaldoConta, calcularSaldoTotal } from '../utils/calculos';
 import { confirmarAlerta } from '../utils/alerta';
+import { formatarMoeda } from '../utils/formato';
 import { Convite } from '../types/Convite';
+import { Conta } from '../types/Conta';
 import { useEffect, useState } from 'react';
 import TelaCarregando from './TelaCarregando';
 
@@ -15,12 +19,23 @@ export default function TelaInicio() {
   const { usuario, carregando } = useUsuarioAtual();
   const usuarioId = usuario?.uid;
   const { perfis, perfilAtivo, carregandoPerfis, definirPerfilAtivo } = usePerfilAtual();
+  const perfilId = perfilAtivo?.id;
+  const ehPrincipal = perfilAtivo?.tipo === 'principal';
   const [convites, setConvites] = useState<Convite[]>([]);
+  const [contas, setContas] = useState<Conta[]>([]);
 
   useEffect(() => {
     if (!usuario?.email) return;
     return escutarConvitesPendentes(usuario.email, setConvites);
   }, [usuario?.email]);
+
+  useEffect(() => {
+    if (!perfilId || !ehPrincipal) {
+      setContas([]);
+      return;
+    }
+    return escutarContas(perfilId, setContas);
+  }, [perfilId, ehPrincipal]);
 
   if (carregando) {
     return <TelaCarregando mensagem="Verificando sua conta..." />;
@@ -92,12 +107,38 @@ export default function TelaInicio() {
         </View>
       )}
 
+      {!carregandoPerfis && perfilAtivo && (
+        <View style={estilos.navContainer}>
+          {ehPrincipal && (
+            <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/contas')}>
+              <Text style={estilos.botaoNavTexto}>Contas</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {carregandoPerfis || !perfilAtivo ? (
         <Text style={estilos.dica}>Carregando perfis...</Text>
+      ) : ehPrincipal ? (
+        <View style={estilos.cartaoAviso}>
+          <Text style={estilos.rotulo}>Saldo total</Text>
+          <Text style={estilos.saldoTotal}>{formatarMoeda(calcularSaldoTotal(contas))}</Text>
+
+          {contas.length > 0 && (
+            <View style={{ marginTop: 12 }}>
+              {contas.map((c) => (
+                <View key={c.id} style={estilos.linhaConta}>
+                  <Text style={estilos.nomeConta}>{c.nome}</Text>
+                  <Text style={estilos.saldoConta}>{formatarMoeda(calcularSaldoConta(c))}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       ) : (
         <View style={estilos.cartaoAviso}>
           <Text style={estilos.dica}>
-            Perfil ativo: {perfilAtivo.nome}. AAAAAAAAAAA TESTEEEE
+            Perfil ativo: {perfilAtivo.nome}. Categorias e lançamentos entram nas próximas semanas.
           </Text>
         </View>
       )}
@@ -126,5 +167,12 @@ const estilos = StyleSheet.create({
   botaoConviteTexto: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
   rotulo: { fontSize: 13, color: '#666', marginBottom: 4 },
   cartaoAviso: { backgroundColor: '#F5F5F5', borderRadius: 8, padding: 14, marginHorizontal: 20, marginTop: 16 },
+  saldoTotal: { fontSize: 24, fontWeight: 'bold', color: '#2E7D9E' },
+  linhaConta: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  nomeConta: { fontSize: 14, color: '#222' },
+  saldoConta: { fontSize: 14, fontWeight: 'bold', color: '#222' },
   dica: { fontSize: 13, color: '#777', marginHorizontal: 20, marginTop: 16 },
+  navContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 20, marginTop: 16 },
+  botaoNav: { backgroundColor: '#2E7D9E', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16 },
+  botaoNavTexto: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
 });

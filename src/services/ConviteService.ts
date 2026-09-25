@@ -61,7 +61,10 @@ export function escutarConvitesPendentes(email: string, callback: (convites: Con
 }
 
 export function aceitarConvite(convite: Convite, usuarioId: string, nomeExibicao?: string): void {
-
+  // Dá acesso ao perfil e marca o convite como aceito. Como nenhuma das
+  // duas escritas é esperada, a tela já pode remover o convite da lista
+  // (ele deixa de bater no filtro status == 'pendente' assim que a 2ª
+  // escrita chegar no servidor).
   adicionarMembro(convite.perfilId, usuarioId, nomeExibicao);
   updateDoc(doc(db, COLECAO, convite.id), { status: 'aceito' }).catch((erro) => {
     console.error('[ConviteService] Falha ao aceitar convite:', erro);

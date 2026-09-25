@@ -4,7 +4,7 @@ export type Perfil = {
   id: string;
   nome: string;
   tipo: TipoPerfil;
-  donoId: string; 
+  donoId: string;
   membros: string[];
   nomesMembros: Record<string, string>; 
 };

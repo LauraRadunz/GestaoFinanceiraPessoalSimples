@@ -18,8 +18,7 @@ export default function TelaPerfis() {
   const [nomeNovoPerfil, setNomeNovoPerfil] = useState('');
   const [mostrarFormularioNovo, setMostrarFormularioNovo] = useState(false);
 
-  // Controla, por perfil, se o campo de "convidar por e-mail" está aberto
-  // e o que foi digitado nele.
+
   const [perfilConvidando, setPerfilConvidando] = useState<string | null>(null);
   const [emailConvite, setEmailConvite] = useState('');
 

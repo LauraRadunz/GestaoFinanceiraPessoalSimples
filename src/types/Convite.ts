@@ -8,5 +8,5 @@ export type Convite = {
   deUsuarioNome: string;
   paraEmail: string; 
   status: StatusConvite;
-  criadoEm: string; 
+  criadoEm: string; // ISO
 };

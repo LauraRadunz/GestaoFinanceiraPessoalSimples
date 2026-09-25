@@ -12,6 +12,13 @@ type PerfilContextoTipo = {
 
 const PerfilContexto = createContext<PerfilContextoTipo | undefined>(undefined);
 
+/**
+ * Guarda, para todo o app, a lista de perfis do usuário logado (o
+ * "Pessoal" + os que ele criou ou aceitou compartilhar) e qual deles está
+ * ativo no momento. As telas (Contas, Categorias, Lançamentos etc.) usam
+ * usePerfilAtual() para saber em qual perfil ler/gravar dados — do mesmo
+ * jeito que useUsuarioAtual() diz qual é o usuário logado.
+ */
 export function PerfilProvider({ children }: { children: ReactNode }) {
   const { usuario } = useUsuarioAtual();
   const usuarioId = usuario?.uid;
@@ -20,10 +27,10 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
   const [perfis, setPerfis] = useState<Perfil[]>([]);
   const [carregandoPerfis, setCarregandoPerfis] = useState(true);
   const [perfilAtivoId, setPerfilAtivoId] = useState<string | null>(null);
+
   const criandoPerfilPara = useRef<string | null>(null);
 
   useEffect(() => {
-    // Ao trocar de usuário (login/logout), esquece a seleção anterior.
     setPerfilAtivoId(null);
     criandoPerfilPara.current = null;
     if (!usuarioId) {
