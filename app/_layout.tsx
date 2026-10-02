@@ -10,6 +10,7 @@ export default function Layout() {
         <Stack.Screen name="cadastro" />
         <Stack.Screen name="perfis" />
         <Stack.Screen name="contas" />
+        <Stack.Screen name="categorias" />
       </Stack>
     </PerfilProvider>
   );

@@ -33,6 +33,9 @@ export default function TelaContas() {
 
   const [contas, setContas] = useState<Conta[]>([]);
 
+  // Escuta em tempo real: assim que uma conta é criada/editada/excluída no
+  // Firestore, esta lista atualiza sozinha — não precisa de uma função de
+  // "recarregar" manual depois de salvar.
   useEffect(() => {
     if (!perfilId) return;
     return escutarContas(perfilId, setContas);
@@ -42,6 +45,9 @@ export default function TelaContas() {
     return <Redirect href="/login" />;
   }
 
+  // Só o perfil principal tem contas de dinheiro — perfis secundários
+  // (ex.: "Casa") servem só para organizar categorias/lançamentos/
+  // orçamento compartilhados.
   if (!carregandoPerfis && perfilAtivo && perfilAtivo.tipo !== 'principal') {
     return (
       <View style={estilos.avisoContainer}>
@@ -71,6 +77,11 @@ export default function TelaContas() {
     }
     const valorInicial = parseFloat(saldoInicial.replace(',', '.')) || 0;
 
+    // Não esperamos a escrita terminar pra liberar o formulário: o
+    // Firestore já atualiza a lista na hora (via onSnapshot), e a
+    // confirmação do servidor pode demorar — travar o botão nisso é o que
+    // causava o "Salvando..." preso. Um erro de verdade ainda aparece,
+    // só que em segundo plano.
     if (editandoId !== null) {
       dispararEscrita(atualizarConta(editandoId, { nome, tipo, saldoInicial: valorInicial }).catch((erro) => {
         console.error(erro);

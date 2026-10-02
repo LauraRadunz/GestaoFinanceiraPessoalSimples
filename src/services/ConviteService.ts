@@ -22,6 +22,9 @@ type DadosNovoConvite = {
   paraEmail: string;
 };
 
+// Não espera confirmação do servidor (mesmo motivo do PerfilService): o
+// ID é gerado no navegador, a escrita roda em segundo plano, e um erro de
+// verdade (não apenas demora) é reportado via `aoFalhar`.
 export function convidarParaPerfil(dados: DadosNovoConvite, aoFalhar?: (erro: unknown) => void): Convite {
   const registro: Omit<Convite, 'id'> = {
     perfilId: dados.perfilId,

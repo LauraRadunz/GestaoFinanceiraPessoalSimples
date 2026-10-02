@@ -29,6 +29,8 @@ export default function TelaInicio() {
     return escutarConvitesPendentes(usuario.email, setConvites);
   }, [usuario?.email]);
 
+  // Só o perfil principal tem contas de dinheiro — num perfil secundário
+  // essa escuta simplesmente não é chamada.
   useEffect(() => {
     if (!perfilId || !ehPrincipal) {
       setContas([]);
@@ -114,6 +116,9 @@ export default function TelaInicio() {
               <Text style={estilos.botaoNavTexto}>Contas</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/categorias')}>
+            <Text style={estilos.botaoNavTexto}>Categorias</Text>
+          </TouchableOpacity>
         </View>
       )}
 

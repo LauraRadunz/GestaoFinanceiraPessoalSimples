@@ -13,7 +13,10 @@ export async function cadastrarUsuario(nome: string, email: string, senha: strin
   if (nome.trim()) {
     await updateProfile(credencial.user, { displayName: nome });
   }
- 
+  // O perfil "Pessoal" (principal) não é criado aqui: o PerfilContexto
+  // cria automaticamente assim que detectar, após o login, que o usuário
+  // ainda não tem nenhum perfil (ver PerfilContexto.tsx) — cobre tanto o
+  // cadastro novo quanto qualquer conta antiga órfã, num único lugar.
   return credencial.user;
 }
 
@@ -26,6 +29,7 @@ export async function sairUsuario(): Promise<void> {
   await signOut(auth);
 }
 
+/** Chama o callback sempre que o estado de login mudar (login, logout, app abrindo). */
 export function observarUsuario(callback: (usuario: User | null) => void) {
   console.log('[Auth] Iniciando escuta de autenticação...');
   return onAuthStateChanged(
@@ -40,6 +44,7 @@ export function observarUsuario(callback: (usuario: User | null) => void) {
   );
 }
 
+/** Traduz os códigos de erro mais comuns do Firebase Auth para mensagens em português. */
 export function traduzirErroAuth(erro: unknown): string {
   const codigo = (erro as { code?: string })?.code ?? '';
   const mapa: Record<string, string> = {
