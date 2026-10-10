@@ -22,9 +22,6 @@ type DadosNovoConvite = {
   paraEmail: string;
 };
 
-// Não espera confirmação do servidor (mesmo motivo do PerfilService): o
-// ID é gerado no navegador, a escrita roda em segundo plano, e um erro de
-// verdade (não apenas demora) é reportado via `aoFalhar`.
 export function convidarParaPerfil(dados: DadosNovoConvite, aoFalhar?: (erro: unknown) => void): Convite {
   const registro: Omit<Convite, 'id'> = {
     perfilId: dados.perfilId,
@@ -43,8 +40,6 @@ export function convidarParaPerfil(dados: DadosNovoConvite, aoFalhar?: (erro: un
   return { id: ref.id, ...registro };
 }
 
-// Convites pendentes para o e-mail da pessoa logada — é assim que ela
-// "recebe uma solicitação para aceitar" ao fazer login (veja TelaInicio).
 export function escutarConvitesPendentes(email: string, callback: (convites: Convite[]) => void): Unsubscribe {
   const q = query(
     collection(db, COLECAO),
@@ -64,10 +59,8 @@ export function escutarConvitesPendentes(email: string, callback: (convites: Con
 }
 
 export function aceitarConvite(convite: Convite, usuarioId: string, nomeExibicao?: string): void {
-  // Dá acesso ao perfil e marca o convite como aceito. Como nenhuma das
-  // duas escritas é esperada, a tela já pode remover o convite da lista
-  // (ele deixa de bater no filtro status == 'pendente' assim que a 2ª
-  // escrita chegar no servidor).
+
+  
   adicionarMembro(convite.perfilId, usuarioId, nomeExibicao);
   updateDoc(doc(db, COLECAO, convite.id), { status: 'aceito' }).catch((erro) => {
     console.error('[ConviteService] Falha ao aceitar convite:', erro);
