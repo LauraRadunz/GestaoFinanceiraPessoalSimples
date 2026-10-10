@@ -12,13 +12,7 @@ type PerfilContextoTipo = {
 
 const PerfilContexto = createContext<PerfilContextoTipo | undefined>(undefined);
 
-/**
- * Guarda, para todo o app, a lista de perfis do usuário logado (o
- * "Pessoal" + os que ele criou ou aceitou compartilhar) e qual deles está
- * ativo no momento. As telas (Contas, Categorias, Lançamentos etc.) usam
- * usePerfilAtual() para saber em qual perfil ler/gravar dados — do mesmo
- * jeito que useUsuarioAtual() diz qual é o usuário logado.
- */
+
 export function PerfilProvider({ children }: { children: ReactNode }) {
   const { usuario } = useUsuarioAtual();
   const usuarioId = usuario?.uid;
@@ -27,12 +21,11 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
   const [perfis, setPerfis] = useState<Perfil[]>([]);
   const [carregandoPerfis, setCarregandoPerfis] = useState(true);
   const [perfilAtivoId, setPerfilAtivoId] = useState<string | null>(null);
-  // Evita chamar criarPerfilPrincipal mais de uma vez em sequência
-  // enquanto a 1ª chamada ainda não voltou pelo onSnapshot.
+  
   const criandoPerfilPara = useRef<string | null>(null);
 
   useEffect(() => {
-    // Ao trocar de usuário (login/logout), esquece a seleção anterior.
+    
     setPerfilAtivoId(null);
     criandoPerfilPara.current = null;
     if (!usuarioId) {
@@ -48,11 +41,7 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
     return cancelar;
   }, [usuarioId]);
 
-  // Autocorreção: se o usuário está logado, a lista de perfis já
-  // terminou de carregar e continua vazia, é porque essa conta nunca
-  // ganhou o perfil "Pessoal" (ex.: conta criada antes de perfis
-  // existirem, ou a criação falhou durante o cadastro). Sem isso, a
-  // pessoa fica presa numa tela sem nenhum perfil ativo para sempre.
+
   useEffect(() => {
     if (!usuarioId || carregandoPerfis || perfis.length > 0) return;
     if (criandoPerfilPara.current === usuarioId) return;
@@ -65,9 +54,7 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
     }
   }, [usuarioId, carregandoPerfis, perfis.length, nomeExibicao]);
 
-  // Sempre que a lista de perfis muda e não há um perfil ativo válido
-  // selecionado (primeira carga, ou o perfil escolhido deixou de existir
-  // / de estar acessível), volta para o perfil principal por padrão.
+  
   useEffect(() => {
     if (perfis.length === 0) return;
     const aindaExiste = perfis.some((p) => p.id === perfilAtivoId);
