@@ -33,9 +33,7 @@ export default function TelaCategorias() {
     return cancelar;
   }, [perfilId]);
 
-  // Grupos já usados em alguma categoria, para popular o dropdown e evitar
-  // que o usuário digite o mesmo grupo com nomes ligeiramente diferentes
-  // (ex.: "Alimentação" vs "alimentacao").
+  
   const gruposExistentes = useMemo(
     () => Array.from(new Set(categorias.map((c) => c.grupo))).sort(),
     [categorias]
@@ -59,8 +57,7 @@ export default function TelaCategorias() {
       return;
     }
 
-    // Ver TelaContas.tsx: não esperamos a escrita terminar pra liberar o
-    // formulário, só disparamos e tratamos erro real em segundo plano.
+
     if (editandoId !== null) {
       dispararEscrita(atualizarCategoria(editandoId, { nome, grupo, tipo }).catch((erro) => {
         console.error(erro);
