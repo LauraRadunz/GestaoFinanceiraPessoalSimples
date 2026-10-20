@@ -36,8 +36,7 @@ export function criarPerfilPrincipal(usuarioId: string, nomeExibicao?: string): 
   });
 }
 
-// Perfil secundário (ex.: "Casa") já pode ter vários por usuário, então
-// aqui sim precisa de um ID novo e aleatório a cada chamada.
+
 export function criarPerfilSecundario(usuarioId: string, nome: string, nomeExibicao?: string): Perfil {
   const idAleatorio = doc(collection(db, COLECAO)).id;
   return criarPerfil(idAleatorio, {
@@ -49,9 +48,7 @@ export function criarPerfilSecundario(usuarioId: string, nome: string, nomeExibi
   });
 }
 
-// Um usuário enxerga um perfil sempre que aparece na lista de "membros" —
-// tanto os perfis que ele mesmo criou quanto os perfis secundários que
-// outra pessoa compartilhou com ele e que ele já aceitou.
+
 export function escutarPerfis(usuarioId: string, callback: (perfis: Perfil[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('membros', 'array-contains', usuarioId));
   return onSnapshot(

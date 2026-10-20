@@ -1,4 +1,5 @@
 import { Conta } from '../types/Conta';
+<<<<<<< HEAD
 import { Lancamento } from '../types/Lancamento';
 import { mesAtual } from './formato';
 
@@ -34,4 +35,13 @@ export function calcularResumoMes(lancamentos: Lancamento[], mes: string = mesAt
   }
 
   return { receitas, despesas, saldo: receitas - despesas };
+=======
+
+export function calcularSaldoConta(conta: Conta): number {
+  return conta.saldoInicial;
+}
+
+export function calcularSaldoTotal(contas: Conta[]): number {
+  return contas.reduce((soma, conta) => soma + calcularSaldoConta(conta), 0);
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
 }

@@ -5,7 +5,11 @@ import { observarUsuario } from '../services/AutenticacaoService';
 
 
 export function useUsuarioAtual() {
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
   const [usuario, setUsuario] = useState<User | null>(auth.currentUser);
   const [carregando, setCarregando] = useState(!auth.currentUser);
   const [demorando, setDemorando] = useState(false);
@@ -16,8 +20,7 @@ export function useUsuarioAtual() {
       setCarregando(false);
     });
 
-    // Se depois de 8 segundos o Firebase ainda não respondeu, algo está
-    // errado (credenciais inválidas, sem internet, projeto mal configurado).
+  
     const tempoLimite = setTimeout(() => setDemorando(true), 8000);
 
     return () => {

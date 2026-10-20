@@ -22,6 +22,7 @@ export async function listarContas(perfilId: string): Promise<Conta[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Conta));
 }
 
+<<<<<<< HEAD
 /**
  * "Escuta" a coleção de contas em tempo real: chama o callback assim que
  * conecta (com os dados atuais) e de novo automaticamente sempre que algo
@@ -29,6 +30,9 @@ export async function listarContas(perfilId: string): Promise<Conta[]> {
  * salvar/editar/excluir. Retorna uma função para cancelar a escuta
  * (chamada no "cleanup" do useEffect da tela).
  */
+=======
+
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
 export function escutarContas(perfilId: string, callback: (contas: Conta[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));
   return onSnapshot(
@@ -38,9 +42,12 @@ export function escutarContas(perfilId: string, callback: (contas: Conta[]) => v
       callback(lista);
     },
     (erro) => {
+<<<<<<< HEAD
       // Sem isso, um erro do Firestore travava a tela girando para sempre
       // em silêncio — agora aparece no console (F12) e a lista volta
       // vazia em vez de ficar esperando para sempre.
+=======
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
       console.error('[ContaService] Erro ao escutar contas:', erro);
       callback([]);
     }

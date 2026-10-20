@@ -7,12 +7,18 @@ import CartaoConta from '../componentes/CartaoConta';
 import { useUsuarioAtual } from '../hooks/useUsuarioAtual';
 import { usePerfilAtual } from '../contexto/PerfilContexto';
 import { adicionarConta, atualizarConta, escutarContas, removerConta } from '../services/ContaService';
+<<<<<<< HEAD
 import { escutarLancamentosPorContas } from '../services/LancamentoService';
+=======
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
 import { calcularSaldoConta } from '../utils/calculos';
 import { confirmarAlerta, mostrarAlerta } from '../utils/alerta';
 import { dispararEscrita, mensagemDeErroSalvar } from '../utils/limiteDeTempo';
 import { Conta, TipoConta } from '../types/Conta';
+<<<<<<< HEAD
 import { Lancamento } from '../types/Lancamento';
+=======
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
 
 const tiposDeConta: { valor: TipoConta; rotulo: string }[] = [
   { valor: 'corrente', rotulo: 'Conta corrente' },
@@ -34,22 +40,34 @@ export default function TelaContas() {
   const [salvo, setSalvo] = useState(false);
 
   const [contas, setContas] = useState<Conta[]>([]);
+<<<<<<< HEAD
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
 
+=======
+
+  
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
   useEffect(() => {
     if (!perfilId) return;
     return escutarContas(perfilId, setContas);
   }, [perfilId]);
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!perfilId) return;
     return escutarLancamentosPorContas(contas.map((c) => c.id), setLancamentos);
   }, [perfilId, contas]);
 
+=======
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
   if (!usuarioId) {
     return <Redirect href="/login" />;
   }
 
+<<<<<<< HEAD
+=======
+  
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
   if (!carregandoPerfis && perfilAtivo && perfilAtivo.tipo !== 'principal') {
     return (
       <View style={estilos.avisoContainer}>
@@ -79,6 +97,10 @@ export default function TelaContas() {
     }
     const valorInicial = parseFloat(saldoInicial.replace(',', '.')) || 0;
 
+<<<<<<< HEAD
+=======
+    
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
     if (editandoId !== null) {
       dispararEscrita(atualizarConta(editandoId, { nome, tipo, saldoInicial: valorInicial }).catch((erro) => {
         console.error(erro);
@@ -164,7 +186,11 @@ export default function TelaContas() {
             key={c.id}
             nome={c.nome}
             tipo={c.tipo}
+<<<<<<< HEAD
             saldo={calcularSaldoConta(c, lancamentos)}
+=======
+            saldo={calcularSaldoConta(c)}
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
             onEditar={() => editar(c)}
             onExcluir={() => excluir(c.id, c.nome)}
           />

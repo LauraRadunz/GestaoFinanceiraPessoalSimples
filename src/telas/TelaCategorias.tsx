@@ -33,6 +33,10 @@ export default function TelaCategorias() {
     return cancelar;
   }, [perfilId]);
 
+<<<<<<< HEAD
+=======
+  
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
   const gruposExistentes = useMemo(
     () => Array.from(new Set(categorias.map((c) => c.grupo))).sort(),
     [categorias]

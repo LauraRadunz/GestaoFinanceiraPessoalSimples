@@ -10,6 +10,14 @@ type SeletorDropdownProps = {
   placeholder?: string;
 };
 
+<<<<<<< HEAD
+=======
+/**
+ * Dropdown nativo (menu suspenso) reutilizável, usado sempre que o
+ * usuário precisa escolher 1 opção entre várias já cadastradas
+ * (conta, grupo de categoria etc.) — em vez de uma lista de botões.
+ */
+>>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
 export default function SeletorDropdown({ valor, aoMudar, itens, placeholder = 'Selecione...' }: SeletorDropdownProps) {
   return (
     <View style={estilos.caixa}>

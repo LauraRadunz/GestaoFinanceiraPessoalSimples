@@ -15,26 +15,12 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 
-// Cache local persistente: o onSnapshot responde na hora com o que já
-// tinha salvo (mesmo antes do servidor confirmar, e mesmo offline), em
-// vez de esperar um round-trip de rede a cada reload. persistentMultipleTabManager
-// é o que permite testar duas contas ao mesmo tempo em abas normais
-// diferentes do mesmo navegador sem uma travar a sincronização da outra
-// (aba anônima já é isolada por padrão, não precisa disso pra ela).
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
   }),
 });
 
-// No navegador (Expo Web), o getAuth() padrão às vezes não consegue
-// decidir sozinho qual mecanismo de persistência usar, e o
-// onAuthStateChanged nunca chama de volta — a tela de carregamento fica
-// travada para sempre. Por isso, na web, inicializamos explicitamente com
-// browserLocalPersistence (guarda a sessão no localStorage do navegador).
-// No celular (Android/iOS), usamos o getAuth padrão normalmente.
-// Se mesmo assim initializeAuth falhar (ex.: já foi chamado antes por
-// causa de Fast Refresh), caímos de volta para getAuth() puro.
 function inicializarAuth() {
   console.log('[Auth] Plataforma detectada:', Platform.OS);
   if (Platform.OS !== 'web') {
