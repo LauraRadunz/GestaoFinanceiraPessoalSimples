@@ -6,8 +6,16 @@ import { useUsuarioAtual } from '../hooks/useUsuarioAtual';
 import { usePerfilAtual } from '../contexto/PerfilContexto';
 import { sairUsuario } from '../services/AutenticacaoService';
 import { escutarConvitesPendentes, aceitarConvite, recusarConvite } from '../services/ConviteService';
+import { escutarContas } from '../services/ContaService';
+import { escutarCategorias } from '../services/CategoriaService';
+import { escutarLancamentosPorCategorias, escutarLancamentosPorContas } from '../services/LancamentoService';
+import { calcularSaldoConta, calcularSaldoTotal, calcularResumoMes } from '../utils/calculos';
 import { confirmarAlerta } from '../utils/alerta';
+import { formatarMoeda, mesAtual, nomeDoMes } from '../utils/formato';
 import { Convite } from '../types/Convite';
+import { Conta } from '../types/Conta';
+import { Categoria } from '../types/Categoria';
+import { Lancamento } from '../types/Lancamento';
 import { useEffect, useState } from 'react';
 import TelaCarregando from './TelaCarregando';
 
@@ -15,12 +23,43 @@ export default function TelaInicio() {
   const { usuario, carregando } = useUsuarioAtual();
   const usuarioId = usuario?.uid;
   const { perfis, perfilAtivo, carregandoPerfis, definirPerfilAtivo } = usePerfilAtual();
+  const perfilId = perfilAtivo?.id;
+  const ehPrincipal = perfilAtivo?.tipo === 'principal';
   const [convites, setConvites] = useState<Convite[]>([]);
+  const [contas, setContas] = useState<Conta[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [lancamentosDasContas, setLancamentosDasContas] = useState<Lancamento[]>([]);
+  const [lancamentosDoPerfil, setLancamentosDoPerfil] = useState<Lancamento[]>([]);
 
   useEffect(() => {
     if (!usuario?.email) return;
     return escutarConvitesPendentes(usuario.email, setConvites);
   }, [usuario?.email]);
+
+  useEffect(() => {
+    if (!perfilId || !ehPrincipal) {
+      setContas([]);
+      return;
+    }
+    return escutarContas(perfilId, setContas);
+  }, [perfilId, ehPrincipal]);
+
+  useEffect(() => {
+    if (!perfilId) return;
+    return escutarLancamentosPorContas(contas.map((c) => c.id), setLancamentosDasContas);
+  }, [perfilId, contas]);
+
+  // Resumo do mês usa os lançamentos do perfil ATIVO (via categorias),
+  // não só os da conta — assim funciona também num perfil secundário.
+  useEffect(() => {
+    if (!perfilId) return;
+    return escutarCategorias(perfilId, setCategorias);
+  }, [perfilId]);
+
+  useEffect(() => {
+    if (!perfilId) return;
+    return escutarLancamentosPorCategorias(categorias.map((c) => c.id), setLancamentosDoPerfil);
+  }, [perfilId, categorias]);
 
   if (carregando) {
     return <TelaCarregando mensagem="Verificando sua conta..." />;
@@ -92,14 +131,62 @@ export default function TelaInicio() {
         </View>
       )}
 
+      {!carregandoPerfis && perfilAtivo && (
+        <View style={estilos.navContainer}>
+          {ehPrincipal && (
+            <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/contas')}>
+              <Text style={estilos.botaoNavTexto}>Contas</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/categorias')}>
+            <Text style={estilos.botaoNavTexto}>Categorias</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/lancamentos')}>
+            <Text style={estilos.botaoNavTexto}>Lançamentos</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {carregandoPerfis || !perfilAtivo ? (
         <Text style={estilos.dica}>Carregando perfis...</Text>
       ) : (
-        <View style={estilos.cartaoAviso}>
-          <Text style={estilos.dica}>
-            Perfil ativo: {perfilAtivo.nome}. AAAAAAAAAAA TESTEEEE
-          </Text>
-        </View>
+        <>
+          {ehPrincipal && (
+            <View style={estilos.cartaoAviso}>
+              <Text style={estilos.rotulo}>Saldo total</Text>
+              <Text style={estilos.saldoTotal}>{formatarMoeda(calcularSaldoTotal(contas, lancamentosDasContas))}</Text>
+
+              {contas.length > 0 && (
+                <View style={{ marginTop: 12 }}>
+                  {contas.map((c) => (
+                    <View key={c.id} style={estilos.linhaConta}>
+                      <Text style={estilos.nomeConta}>{c.nome}</Text>
+                      <Text style={estilos.saldoConta}>{formatarMoeda(calcularSaldoConta(c, lancamentosDasContas))}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={estilos.cartaoAviso}>
+            <Text style={estilos.rotulo}>Resumo de {nomeDoMes(mesAtual())}</Text>
+            <View style={estilos.linhaResumo}>
+              <View>
+                <Text style={estilos.rotuloResumo}>Receitas</Text>
+                <Text style={[estilos.valorResumo, { color: '#2ECC71' }]}>{formatarMoeda(calcularResumoMes(lancamentosDoPerfil).receitas)}</Text>
+              </View>
+              <View>
+                <Text style={estilos.rotuloResumo}>Despesas</Text>
+                <Text style={[estilos.valorResumo, { color: '#E05C5C' }]}>{formatarMoeda(calcularResumoMes(lancamentosDoPerfil).despesas)}</Text>
+              </View>
+              <View>
+                <Text style={estilos.rotuloResumo}>Lucro do mês</Text>
+                <Text style={estilos.valorResumo}>{formatarMoeda(calcularResumoMes(lancamentosDoPerfil).saldo)}</Text>
+              </View>
+            </View>
+          </View>
+        </>
       )}
     </ScrollView>
   );
@@ -126,5 +213,15 @@ const estilos = StyleSheet.create({
   botaoConviteTexto: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
   rotulo: { fontSize: 13, color: '#666', marginBottom: 4 },
   cartaoAviso: { backgroundColor: '#F5F5F5', borderRadius: 8, padding: 14, marginHorizontal: 20, marginTop: 16 },
+  saldoTotal: { fontSize: 24, fontWeight: 'bold', color: '#2E7D9E' },
+  linhaConta: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  nomeConta: { fontSize: 14, color: '#222' },
+  saldoConta: { fontSize: 14, fontWeight: 'bold', color: '#222' },
   dica: { fontSize: 13, color: '#777', marginHorizontal: 20, marginTop: 16 },
+  navContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 20, marginTop: 16 },
+  botaoNav: { backgroundColor: '#2E7D9E', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16 },
+  botaoNavTexto: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
+  linhaResumo: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  rotuloResumo: { fontSize: 12, color: '#666' },
+  valorResumo: { fontSize: 16, fontWeight: 'bold', color: '#222', marginTop: 2 },
 });
