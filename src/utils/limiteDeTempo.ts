@@ -1,4 +1,3 @@
-
 export function dispararEscrita(promessa: Promise<unknown>): void {
   promessa.catch((erro) => {
     console.error('[dispararEscrita] Falha ao salvar em segundo plano:', erro);

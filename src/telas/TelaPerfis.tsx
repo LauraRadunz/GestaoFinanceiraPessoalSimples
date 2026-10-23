@@ -17,6 +17,7 @@ export default function TelaPerfis() {
 
   const [nomeNovoPerfil, setNomeNovoPerfil] = useState('');
   const [mostrarFormularioNovo, setMostrarFormularioNovo] = useState(false);
+
   const [perfilConvidando, setPerfilConvidando] = useState<string | null>(null);
   const [emailConvite, setEmailConvite] = useState('');
 
@@ -24,11 +25,6 @@ export default function TelaPerfis() {
     return <Redirect href="/login" />;
   }
 
-<<<<<<< HEAD
-
-=======
-  
->>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
   function criarPerfil() {
     if (!nomeNovoPerfil.trim()) {
       mostrarAlerta('Campo obrigatório', 'Dê um nome para o novo perfil (ex.: Casa).');

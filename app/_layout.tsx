@@ -11,10 +11,9 @@ export default function Layout() {
         <Stack.Screen name="perfis" />
         <Stack.Screen name="contas" />
         <Stack.Screen name="categorias" />
-<<<<<<< HEAD
         <Stack.Screen name="lancamentos" />
-=======
->>>>>>> dccad0bf6c13c0cc0f1ea7700258fb83db96d2fc
+        <Stack.Screen name="transferencias" />
+        <Stack.Screen name="metas" />
       </Stack>
     </PerfilProvider>
   );

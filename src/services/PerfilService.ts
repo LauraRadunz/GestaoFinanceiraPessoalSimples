@@ -17,7 +17,6 @@ import { Perfil } from '../types/Perfil';
 
 const COLECAO = 'perfis';
 
-
 function criarPerfil(id: string, dados: Omit<Perfil, 'id'>): Perfil {
   const ref = doc(db, COLECAO, id);
   setDoc(ref, dados, { merge: true }).catch((erro) => {
@@ -36,7 +35,6 @@ export function criarPerfilPrincipal(usuarioId: string, nomeExibicao?: string): 
   });
 }
 
-
 export function criarPerfilSecundario(usuarioId: string, nome: string, nomeExibicao?: string): Perfil {
   const idAleatorio = doc(collection(db, COLECAO)).id;
   return criarPerfil(idAleatorio, {
@@ -47,7 +45,6 @@ export function criarPerfilSecundario(usuarioId: string, nome: string, nomeExibi
     nomesMembros: { [usuarioId]: nomeExibicao || 'Você' },
   });
 }
-
 
 export function escutarPerfis(usuarioId: string, callback: (perfis: Perfil[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('membros', 'array-contains', usuarioId));

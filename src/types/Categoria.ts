@@ -5,5 +5,5 @@ export type Categoria = {
   perfilId: string;
   nome: string;
   tipo: TipoCategoria;
-  grupo: string; // ex: "Alimentação", "Transporte"
+  grupo: string;
 };

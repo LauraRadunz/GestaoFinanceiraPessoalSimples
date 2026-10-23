@@ -49,9 +49,6 @@ export default function TelaLancamentos() {
     };
   }, [perfilId]);
 
-  // "Join" manual: lançamento não guarda perfilId direto, o dono de
-  // verdade é a categoria — por isso só buscamos os lançamentos depois
-  // que as categorias do perfil carregarem.
   useEffect(() => {
     if (!perfilId) return;
     return escutarLancamentosPorCategorias(categorias.map((c) => c.id), setLancamentos);
@@ -92,7 +89,6 @@ export default function TelaLancamentos() {
       pagadorId: usuarioId,
       ...(contaId ? { contaId } : {}),
     };
-
 
     if (editandoId !== null) {
       dispararEscrita(atualizarLancamento(editandoId, dados).catch((erro) => {

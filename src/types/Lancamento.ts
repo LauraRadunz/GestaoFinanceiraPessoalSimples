@@ -1,13 +1,12 @@
 import { TipoCategoria } from './Categoria';
 
-
 export type Lancamento = {
   id: string;
-  tipo: TipoCategoria; // 'receita' | 'despesa'
+  tipo: TipoCategoria;
   contaId?: string;
   categoriaId: string;
   valor: number;
-  data: string; // formato ISO (AAAA-MM-DD)
+  data: string;
   descricao?: string;
   pagadorId?: string;
 };

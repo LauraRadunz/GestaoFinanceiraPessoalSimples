@@ -42,11 +42,6 @@ export function escutarLancamentosPorCategorias(
   );
 }
 
-// Busca por contaId em vez de categoriaId: usado para calcular o SALDO
-// real de uma conta do perfil principal, que precisa somar tanto os
-// lançamentos feitos ali mesmo quanto os gastos lançados em perfis
-// secundários (ex.: "Casa") que escolheram descontar dessa conta — esses
-// não aparecem via categoriaId porque a categoria deles é do outro perfil.
 export function escutarLancamentosPorContas(
   contaIds: string[],
   callback: (lancamentos: Lancamento[]) => void
