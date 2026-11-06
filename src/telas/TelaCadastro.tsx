@@ -27,7 +27,9 @@ export default function TelaCadastro() {
     setCarregando(true);
     try {
       await cadastrarUsuario(nome.trim(), email.trim(), senha);
+   
       router.replace('/');
+
     } catch (erro) {
       mostrarAlerta('Não foi possível cadastrar', traduzirErroAuth(erro));
     } finally {

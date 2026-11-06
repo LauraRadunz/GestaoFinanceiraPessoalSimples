@@ -22,6 +22,7 @@ type DadosNovoConvite = {
   paraEmail: string;
 };
 
+
 export function convidarParaPerfil(dados: DadosNovoConvite, aoFalhar?: (erro: unknown) => void): Convite {
   const registro: Omit<Convite, 'id'> = {
     perfilId: dados.perfilId,
@@ -59,6 +60,7 @@ export function escutarConvitesPendentes(email: string, callback: (convites: Con
 }
 
 export function aceitarConvite(convite: Convite, usuarioId: string, nomeExibicao?: string): void {
+
   adicionarMembro(convite.perfilId, usuarioId, nomeExibicao);
   updateDoc(doc(db, COLECAO, convite.id), { status: 'aceito' }).catch((erro) => {
     console.error('[ConviteService] Falha ao aceitar convite:', erro);

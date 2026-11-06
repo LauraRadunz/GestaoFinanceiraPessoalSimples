@@ -14,6 +14,7 @@ export default function Layout() {
         <Stack.Screen name="lancamentos" />
         <Stack.Screen name="transferencias" />
         <Stack.Screen name="metas" />
+        <Stack.Screen name="orcamento" />
       </Stack>
     </PerfilProvider>
   );

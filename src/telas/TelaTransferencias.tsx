@@ -36,6 +36,7 @@ export default function TelaTransferencias() {
     return cancelarContas;
   }, [perfilId]);
 
+
   useEffect(() => {
     if (!perfilId) return;
     return escutarTransferenciasPorContas(contas.map((c) => c.id), setTransferencias);

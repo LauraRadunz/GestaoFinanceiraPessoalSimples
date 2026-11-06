@@ -3,7 +3,9 @@ import { User } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { observarUsuario } from '../services/AutenticacaoService';
 
+
 export function useUsuarioAtual() {
+
   const [usuario, setUsuario] = useState<User | null>(auth.currentUser);
   const [carregando, setCarregando] = useState(!auth.currentUser);
   const [demorando, setDemorando] = useState(false);
@@ -13,6 +15,7 @@ export function useUsuarioAtual() {
       setUsuario(u);
       setCarregando(false);
     });
+
 
     const tempoLimite = setTimeout(() => setDemorando(true), 8000);
 

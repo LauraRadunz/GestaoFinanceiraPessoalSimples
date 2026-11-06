@@ -17,6 +17,7 @@ export default function TelaLogin() {
     setCarregando(true);
     try {
       await entrarUsuario(email.trim(), senha);
+
       router.replace('/');
     } catch (erro) {
       mostrarAlerta('Não foi possível entrar', traduzirErroAuth(erro));

@@ -3,6 +3,6 @@ export type Meta = {
   perfilId: string;
   nome: string;
   valorAlvo: number;
-  prazo?: string;
-  contaId?: string;
+  prazo?: string; 
+  contaId?: string; 
 };

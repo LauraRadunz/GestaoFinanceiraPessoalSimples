@@ -31,6 +31,7 @@ export function escutarContas(perfilId: string, callback: (contas: Conta[]) => v
       callback(lista);
     },
     (erro) => {
+
       console.error('[ContaService] Erro ao escutar contas:', erro);
       callback([]);
     }

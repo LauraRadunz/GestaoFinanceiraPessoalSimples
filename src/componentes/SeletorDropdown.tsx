@@ -10,6 +10,7 @@ type SeletorDropdownProps = {
   placeholder?: string;
 };
 
+
 export default function SeletorDropdown({ valor, aoMudar, itens, placeholder = 'Selecione...' }: SeletorDropdownProps) {
   return (
     <View style={estilos.caixa}>

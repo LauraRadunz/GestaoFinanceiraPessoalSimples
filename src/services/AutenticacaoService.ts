@@ -13,6 +13,7 @@ export async function cadastrarUsuario(nome: string, email: string, senha: strin
   if (nome.trim()) {
     await updateProfile(credencial.user, { displayName: nome });
   }
+
   return credencial.user;
 }
 

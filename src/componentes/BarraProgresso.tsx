@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 type BarraProgressoProps = {
-  percentual: number;
+  percentual: number; 
   cor?: string;
 };
 

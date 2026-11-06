@@ -10,7 +10,7 @@ import { escutarContas } from '../services/ContaService';
 import { escutarCategorias } from '../services/CategoriaService';
 import { escutarLancamentosPorCategorias, escutarLancamentosPorContas } from '../services/LancamentoService';
 import { escutarTransferenciasPorContas } from '../services/TransferenciaService';
-import { calcularSaldoConta, calcularSaldoTotal, calcularResumoMes } from '../utils/calculos';
+import { calcularSaldoConta, calcularSaldoTotal, calcularResumoMes, calcularDivisaoDeGastos } from '../utils/calculos';
 import { confirmarAlerta } from '../utils/alerta';
 import { formatarMoeda, mesAtual, nomeDoMes } from '../utils/formato';
 import { Convite } from '../types/Convite';
@@ -39,6 +39,7 @@ export default function TelaInicio() {
     return escutarConvitesPendentes(usuario.email, setConvites);
   }, [usuario?.email]);
 
+
   useEffect(() => {
     if (!perfilId || !ehPrincipal) {
       setContas([]);
@@ -56,6 +57,7 @@ export default function TelaInicio() {
     if (!perfilId) return;
     return escutarTransferenciasPorContas(contas.map((c) => c.id), setTransferencias);
   }, [perfilId, contas]);
+
 
   useEffect(() => {
     if (!perfilId) return;
@@ -160,6 +162,9 @@ export default function TelaInicio() {
               <Text style={estilos.botaoNavTexto}>Metas</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/orcamento')}>
+            <Text style={estilos.botaoNavTexto}>Orçamento</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -182,6 +187,23 @@ export default function TelaInicio() {
                   ))}
                 </View>
               )}
+            </View>
+          )}
+
+          {!ehPrincipal && perfilAtivo.membros.length > 1 && (
+            <View style={estilos.cartaoAviso}>
+              <Text style={estilos.rotulo}>Sua parte em {perfilAtivo.nome}</Text>
+              {(() => {
+                const meuSaldo = calcularDivisaoDeGastos(lancamentosDoPerfil, perfilAtivo.membros).find((s) => s.usuarioId === usuarioId);
+                if (!meuSaldo) return null;
+                const emDia = Math.abs(meuSaldo.saldo) < 0.01;
+                return (
+                  <Text style={[estilos.saldoTotal, { color: emDia ? '#666' : meuSaldo.saldo > 0 ? '#2ECC71' : '#E05C5C', fontSize: 18 }]}>
+                    {emDia ? 'Você está em dia' : meuSaldo.saldo > 0 ? `Você tem a receber ${formatarMoeda(meuSaldo.saldo)}` : `Você deve ${formatarMoeda(-meuSaldo.saldo)}`}
+                  </Text>
+                );
+              })()}
+              <Text style={estilos.dica}>Veja o detalhe em Lançamentos</Text>
             </View>
           )}
 

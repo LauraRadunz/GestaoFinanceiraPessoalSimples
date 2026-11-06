@@ -18,6 +18,7 @@ export default function TelaPerfis() {
   const [nomeNovoPerfil, setNomeNovoPerfil] = useState('');
   const [mostrarFormularioNovo, setMostrarFormularioNovo] = useState(false);
 
+
   const [perfilConvidando, setPerfilConvidando] = useState<string | null>(null);
   const [emailConvite, setEmailConvite] = useState('');
 

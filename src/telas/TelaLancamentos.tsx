@@ -12,6 +12,8 @@ import { escutarContas } from '../services/ContaService';
 import { escutarCategorias } from '../services/CategoriaService';
 import { confirmarAlerta, mostrarAlerta } from '../utils/alerta';
 import { dispararEscrita, mensagemDeErroSalvar } from '../utils/limiteDeTempo';
+import { calcularDivisaoDeGastos, calcularAcertos } from '../utils/calculos';
+import { formatarMoeda } from '../utils/formato';
 import { Lancamento } from '../types/Lancamento';
 import { Conta } from '../types/Conta';
 import { Categoria, TipoCategoria } from '../types/Categoria';
@@ -19,8 +21,12 @@ import { Categoria, TipoCategoria } from '../types/Categoria';
 export default function TelaLancamentos() {
   const { usuario } = useUsuarioAtual();
   const usuarioId = usuario?.uid;
-  const { perfilAtivo } = usePerfilAtual();
+  const { perfis, perfilAtivo } = usePerfilAtual();
   const perfilId = perfilAtivo?.id;
+  const ehSecundario = perfilAtivo?.tipo === 'secundario';
+
+
+  const meuPerfilPrincipal = useMemo(() => perfis.find((p) => p.tipo === 'principal'), [perfis]);
 
   const [tipo, setTipo] = useState<TipoCategoria>('despesa');
   const [contaId, setContaId] = useState('');
@@ -34,6 +40,7 @@ export default function TelaLancamentos() {
 
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [contas, setContas] = useState<Conta[]>([]);
+  const [minhasContas, setMinhasContas] = useState<Conta[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
 
   const [filtroTipo, setFiltroTipo] = useState<'todos' | TipoCategoria>('todos');
@@ -50,9 +57,28 @@ export default function TelaLancamentos() {
   }, [perfilId]);
 
   useEffect(() => {
+    if (!ehSecundario || !meuPerfilPrincipal) {
+      setMinhasContas([]);
+      return;
+    }
+    return escutarContas(meuPerfilPrincipal.id, setMinhasContas);
+  }, [ehSecundario, meuPerfilPrincipal]);
+
+  const contasSelecionaveis = ehSecundario ? minhasContas : contas;
+
+
+  useEffect(() => {
     if (!perfilId) return;
     return escutarLancamentosPorCategorias(categorias.map((c) => c.id), setLancamentos);
   }, [perfilId, categorias]);
+
+  const divisao = useMemo(() => {
+    if (!ehSecundario || !perfilAtivo) return null;
+    const saldos = calcularDivisaoDeGastos(lancamentos, perfilAtivo.membros);
+    const acertos = calcularAcertos(saldos);
+    const total = saldos.reduce((soma, s) => soma + s.pago, 0);
+    return { saldos, acertos, total };
+  }, [ehSecundario, perfilAtivo, lancamentos]);
 
   function limparFormulario() {
     setTipo('despesa');
@@ -66,7 +92,7 @@ export default function TelaLancamentos() {
   }
 
   function salvar() {
-    if (contas.length > 0 && !contaId) {
+    if (contasSelecionaveis.length > 0 && !contaId) {
       mostrarAlerta('Campo obrigatório', 'Selecione a conta.');
       return;
     }
@@ -89,6 +115,7 @@ export default function TelaLancamentos() {
       pagadorId: usuarioId,
       ...(contaId ? { contaId } : {}),
     };
+
 
     if (editandoId !== null) {
       dispararEscrita(atualizarLancamento(editandoId, dados).catch((erro) => {
@@ -129,9 +156,10 @@ export default function TelaLancamentos() {
     });
   }
 
-  const nomeConta = (id?: string) => (id ? contas.find((c) => c.id === id)?.nome ?? '—' : '—');
+  const nomeConta = (id?: string) => (id ? contasSelecionaveis.find((c) => c.id === id)?.nome ?? contas.find((c) => c.id === id)?.nome ?? '—' : '—');
   const nomeCategoria = (id: string) => categorias.find((c) => c.id === id)?.nome ?? '—';
   const grupoDaCategoria = (id: string) => categorias.find((c) => c.id === id)?.grupo ?? '';
+  const nomeMembro = (id: string) => perfilAtivo?.nomesMembros?.[id] ?? (id === usuarioId ? 'Você' : 'Alguém');
 
   const gruposDisponiveis = useMemo(
     () => Array.from(new Set(categorias.filter((c) => c.tipo === tipo).map((c) => c.grupo))).sort(),
@@ -175,17 +203,26 @@ export default function TelaLancamentos() {
         ))}
       </View>
 
-      {contas.length > 0 && (
+      {contasSelecionaveis.length > 0 && (
         <>
-          <Text style={estilos.label}>Conta</Text>
+          <Text style={estilos.label}>{ehSecundario ? 'Pagar com (sua conta)' : 'Conta'}</Text>
           <View style={estilos.opcoes}>
-            {contas.map((c) => (
+            {contasSelecionaveis.map((c) => (
               <TouchableOpacity key={c.id} style={[estilos.opcao, contaId === c.id && estilos.opcaoSelecionada]} onPress={() => setContaId(c.id)}>
                 <Text style={[estilos.opcaoTexto, contaId === c.id && estilos.opcaoTextoSelecionado]}>{c.nome}</Text>
               </TouchableOpacity>
             ))}
           </View>
+          {ehSecundario && (
+            <Text style={estilos.dica}>O valor será descontado dessa conta do seu perfil Pessoal.</Text>
+          )}
         </>
+      )}
+      {ehSecundario && contasSelecionaveis.length === 0 && (
+        <Text style={estilos.dica}>
+          Você ainda não tem contas no seu perfil Pessoal — o gasto entra na divisão mesmo assim, só não desconta de
+          conta nenhuma.
+        </Text>
       )}
 
       <Text style={estilos.label}>Grupo</Text>
@@ -236,6 +273,34 @@ export default function TelaLancamentos() {
 
       <Text style={estilos.secaoTitulo}>Lançamentos</Text>
 
+      {divisao && perfilAtivo && perfilAtivo.membros.length > 1 && (
+        <View style={estilos.cartaoDivisao}>
+          <Text style={estilos.rotuloAcertos}>Divisão de gastos</Text>
+          <Text style={estilos.dica}>Total gasto: {formatarMoeda(divisao.total)} · dividido igualmente entre {perfilAtivo.membros.length} pessoas</Text>
+
+          {divisao.saldos.map((s) => (
+            <View key={s.usuarioId} style={estilos.linhaSaldo}>
+              <Text style={estilos.nomeMembro}>{nomeMembro(s.usuarioId)}</Text>
+              <Text style={[estilos.valorSaldo, { color: s.saldo >= 0 ? '#2ECC71' : '#E05C5C' }]}>
+                {s.saldo >= 0 ? `a receber ${formatarMoeda(s.saldo)}` : `deve ${formatarMoeda(-s.saldo)}`}
+              </Text>
+            </View>
+          ))}
+
+          {divisao.acertos.length > 0 && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={estilos.rotuloAcertos}>Pra fechar a conta:</Text>
+              {divisao.acertos.map((a, i) => (
+                <Text key={i} style={estilos.textoAcerto}>
+                  {nomeMembro(a.deUsuarioId)} deve pagar {formatarMoeda(a.valor)} para {nomeMembro(a.paraUsuarioId)}
+                </Text>
+              ))}
+              <Text style={estilos.dica}>Registrar o pagamento desses acertos entra na próxima semana.</Text>
+            </View>
+          )}
+        </View>
+      )}
+
       <TextInput
         style={estilos.input}
         placeholder="Buscar por descrição, categoria ou grupo..."
@@ -258,7 +323,7 @@ export default function TelaLancamentos() {
         lancamentosFiltrados.map((l) => (
           <CartaoLancamento
             key={l.id}
-            descricao={l.descricao ?? ''}
+            descricao={ehSecundario && l.pagadorId ? `${l.descricao ?? ''}${l.descricao ? ' · ' : ''}pago por ${nomeMembro(l.pagadorId)}` : l.descricao ?? ''}
             categoriaNome={nomeCategoria(l.categoriaId)}
             contaNome={nomeConta(l.contaId)}
             tipo={l.tipo}
@@ -290,4 +355,10 @@ const estilos = StyleSheet.create({
   botaoCancelarTexto: { color: '#2E7D9E', fontSize: 16, fontWeight: 'bold' },
   secaoTitulo: { fontSize: 16, fontWeight: 'bold', color: '#333', marginTop: 32, marginBottom: 8, borderTopWidth: 1, borderTopColor: '#E0E0E0', paddingTop: 16 },
   vazio: { fontSize: 14, color: '#777', fontStyle: 'italic', marginTop: 12 },
+  cartaoDivisao: { backgroundColor: '#F5F5F5', borderRadius: 8, padding: 14, marginTop: 24 },
+  rotuloAcertos: { fontSize: 13, fontWeight: 'bold', color: '#333' },
+  linhaSaldo: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+  nomeMembro: { fontSize: 13, color: '#333' },
+  valorSaldo: { fontSize: 13, fontWeight: 'bold' },
+  textoAcerto: { fontSize: 13, color: '#333', marginTop: 4 },
 });

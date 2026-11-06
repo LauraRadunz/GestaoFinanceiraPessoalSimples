@@ -30,6 +30,7 @@ export function escutarMetas(perfilId: string, callback: (metas: Meta[]) => void
       callback(lista);
     },
     (erro) => {
+
       console.error('[MetaService] Erro ao escutar metas:', erro);
       callback([]);
     }

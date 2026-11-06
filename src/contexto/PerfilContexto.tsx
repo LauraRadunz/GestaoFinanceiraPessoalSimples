@@ -12,6 +12,7 @@ type PerfilContextoTipo = {
 
 const PerfilContexto = createContext<PerfilContextoTipo | undefined>(undefined);
 
+
 export function PerfilProvider({ children }: { children: ReactNode }) {
   const { usuario } = useUsuarioAtual();
   const usuarioId = usuario?.uid;
@@ -20,9 +21,11 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
   const [perfis, setPerfis] = useState<Perfil[]>([]);
   const [carregandoPerfis, setCarregandoPerfis] = useState(true);
   const [perfilAtivoId, setPerfilAtivoId] = useState<string | null>(null);
+
   const criandoPerfilPara = useRef<string | null>(null);
 
   useEffect(() => {
+    // Ao trocar de usuário (login/logout), esquece a seleção anterior.
     setPerfilAtivoId(null);
     criandoPerfilPara.current = null;
     if (!usuarioId) {
@@ -38,6 +41,7 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
     return cancelar;
   }, [usuarioId]);
 
+
   useEffect(() => {
     if (!usuarioId || carregandoPerfis || perfis.length > 0) return;
     if (criandoPerfilPara.current === usuarioId) return;
@@ -49,6 +53,7 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
       criandoPerfilPara.current = null;
     }
   }, [usuarioId, carregandoPerfis, perfis.length, nomeExibicao]);
+
 
   useEffect(() => {
     if (perfis.length === 0) return;
