@@ -39,7 +39,6 @@ export default function TelaOrcamento() {
     return escutarCategorias(perfilId, setCategorias);
   }, [perfilId]);
 
-
   useEffect(() => {
     if (!perfilId) return;
     const categoriaIds = categorias.map((c) => c.id);
@@ -62,6 +61,8 @@ export default function TelaOrcamento() {
       return;
     }
 
+    // Ver TelaContas.tsx: não esperamos a escrita terminar pra liberar o
+    // formulário, só disparamos e tratamos erro real em segundo plano.
     dispararEscrita(
       adicionarOrcamento({ categoriaId, mes, valorPlanejado: valorNumerico }).catch((erro) => {
         console.error(erro);

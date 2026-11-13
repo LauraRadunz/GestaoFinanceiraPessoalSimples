@@ -22,7 +22,6 @@ type DadosNovoConvite = {
   paraEmail: string;
 };
 
-
 export function convidarParaPerfil(dados: DadosNovoConvite, aoFalhar?: (erro: unknown) => void): Convite {
   const registro: Omit<Convite, 'id'> = {
     perfilId: dados.perfilId,

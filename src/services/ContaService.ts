@@ -22,6 +22,7 @@ export async function listarContas(perfilId: string): Promise<Conta[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Conta));
 }
 
+
 export function escutarContas(perfilId: string, callback: (contas: Conta[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));
   return onSnapshot(
@@ -31,7 +32,6 @@ export function escutarContas(perfilId: string, callback: (contas: Conta[]) => v
       callback(lista);
     },
     (erro) => {
-
       console.error('[ContaService] Erro ao escutar contas:', erro);
       callback([]);
     }

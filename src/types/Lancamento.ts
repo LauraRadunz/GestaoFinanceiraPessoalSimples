@@ -1,6 +1,5 @@
 import { TipoCategoria } from './Categoria';
 
-
 export type Lancamento = {
   id: string;
   tipo: TipoCategoria; // 'receita' | 'despesa'

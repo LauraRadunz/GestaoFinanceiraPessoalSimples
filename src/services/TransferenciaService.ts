@@ -19,7 +19,6 @@ export async function listarTransferencias(): Promise<Transferencia[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Transferencia));
 }
 
-
 export function escutarTransferenciasPorContas(
   contaIds: string[],
   callback: (transferencias: Transferencia[]) => void

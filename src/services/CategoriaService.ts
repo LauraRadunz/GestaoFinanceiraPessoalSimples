@@ -1,6 +1,18 @@
-import { collection, doc, addDoc, getDocs, updateDoc, deleteDoc, query, where, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  addDoc,
+  setDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  onSnapshot,
+  Unsubscribe,
+} from 'firebase/firestore';
 import { db } from './firebase';
-import { Categoria } from '../types/Categoria';
+import { Categoria, TipoCategoria } from '../types/Categoria';
 
 const COLECAO = 'categorias';
 
@@ -19,6 +31,10 @@ export function escutarCategorias(perfilId: string, callback: (categorias: Categ
       callback(lista);
     },
     (erro) => {
+      // Como tava dando errro tivemos q adicionar isso
+      // Sem isso, um erro do Firestore travava a tela girando para sempre
+      // em silêncio, agora aparece no console (F12) e a lista volta
+      // vazia em vez de ficar esperando para sempre.
       console.error('[CategoriaService] Erro ao escutar categorias:', erro);
       callback([]);
     }
@@ -38,4 +54,22 @@ export async function atualizarCategoria(id: string, dados: Partial<Omit<Categor
 export async function removerCategoria(id: string): Promise<void> {
   const ref = doc(db, COLECAO, id);
   await deleteDoc(ref);
+}
+
+export function garantirCategoriaRepasse(usuarioId: string, tipo: TipoCategoria): string {
+  const id = `repasse-${tipo}-${usuarioId}`;
+  const ref = doc(db, COLECAO, id);
+  setDoc(
+    ref,
+    {
+      perfilId: usuarioId,
+      nome: tipo === 'despesa' ? 'Repasses enviados' : 'Repasses recebidos',
+      tipo,
+      grupo: 'Divisão de gastos',
+    },
+    { merge: true }
+  ).catch((erro) => {
+    console.error('[CategoriaService] Falha ao garantir categoria de repasse:', erro);
+  });
+  return id;
 }

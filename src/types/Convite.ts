@@ -6,7 +6,7 @@ export type Convite = {
   perfilNome: string;
   deUsuarioId: string;
   deUsuarioNome: string;
-  paraEmail: string;
+  paraEmail: string; // sempre em minúsculas
   status: StatusConvite;
-  criadoEm: string;
+  criadoEm: string; // ISO
 };

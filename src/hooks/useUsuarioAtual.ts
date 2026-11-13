@@ -5,7 +5,6 @@ import { observarUsuario } from '../services/AutenticacaoService';
 
 
 export function useUsuarioAtual() {
-
   const [usuario, setUsuario] = useState<User | null>(auth.currentUser);
   const [carregando, setCarregando] = useState(!auth.currentUser);
   const [demorando, setDemorando] = useState(false);

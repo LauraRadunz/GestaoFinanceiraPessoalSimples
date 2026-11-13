@@ -10,13 +10,15 @@ import { usePerfilAtual } from '../contexto/PerfilContexto';
 import { adicionarLancamento, atualizarLancamento, escutarLancamentosPorCategorias, removerLancamento } from '../services/LancamentoService';
 import { escutarContas } from '../services/ContaService';
 import { escutarCategorias } from '../services/CategoriaService';
+import { escutarRepassesDoPerfil, enviarRepasse } from '../services/RepasseService';
 import { confirmarAlerta, mostrarAlerta } from '../utils/alerta';
 import { dispararEscrita, mensagemDeErroSalvar } from '../utils/limiteDeTempo';
-import { calcularDivisaoDeGastos, calcularAcertos } from '../utils/calculos';
+import { calcularDivisaoDeGastos, calcularAcertos, Acerto } from '../utils/calculos';
 import { formatarMoeda } from '../utils/formato';
 import { Lancamento } from '../types/Lancamento';
 import { Conta } from '../types/Conta';
 import { Categoria, TipoCategoria } from '../types/Categoria';
+import { Repasse } from '../types/Repasse';
 
 export default function TelaLancamentos() {
   const { usuario } = useUsuarioAtual();
@@ -24,7 +26,6 @@ export default function TelaLancamentos() {
   const { perfis, perfilAtivo } = usePerfilAtual();
   const perfilId = perfilAtivo?.id;
   const ehSecundario = perfilAtivo?.tipo === 'secundario';
-
 
   const meuPerfilPrincipal = useMemo(() => perfis.find((p) => p.tipo === 'principal'), [perfis]);
 
@@ -42,8 +43,15 @@ export default function TelaLancamentos() {
   const [contas, setContas] = useState<Conta[]>([]);
   const [minhasContas, setMinhasContas] = useState<Conta[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [repasses, setRepasses] = useState<Repasse[]>([]);
+
+  const [acertoAbertoIndex, setAcertoAbertoIndex] = useState<number | null>(null);
+  const [contaDoAcerto, setContaDoAcerto] = useState('');
+  const [valorDoAcerto, setValorDoAcerto] = useState('');
+  const [dataDoAcerto, setDataDoAcerto] = useState(new Date().toISOString().slice(0, 10));
 
   const [filtroTipo, setFiltroTipo] = useState<'todos' | TipoCategoria>('todos');
+  const [filtroContaId, setFiltroContaId] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
 
   useEffect(() => {
@@ -66,19 +74,10 @@ export default function TelaLancamentos() {
 
   const contasSelecionaveis = ehSecundario ? minhasContas : contas;
 
-
   useEffect(() => {
     if (!perfilId) return;
     return escutarLancamentosPorCategorias(categorias.map((c) => c.id), setLancamentos);
   }, [perfilId, categorias]);
-
-  const divisao = useMemo(() => {
-    if (!ehSecundario || !perfilAtivo) return null;
-    const saldos = calcularDivisaoDeGastos(lancamentos, perfilAtivo.membros);
-    const acertos = calcularAcertos(saldos);
-    const total = saldos.reduce((soma, s) => soma + s.pago, 0);
-    return { saldos, acertos, total };
-  }, [ehSecundario, perfilAtivo, lancamentos]);
 
   function limparFormulario() {
     setTipo('despesa');
@@ -93,7 +92,7 @@ export default function TelaLancamentos() {
 
   function salvar() {
     if (contasSelecionaveis.length > 0 && !contaId) {
-      mostrarAlerta('Campo obrigatório', 'Selecione a conta.');
+      mostrarAlerta('Campo obrigatório', ehSecundario ? 'Selecione de qual das suas contas saiu o dinheiro.' : 'Selecione a conta.');
       return;
     }
     if (!categoriaId) {
@@ -115,7 +114,6 @@ export default function TelaLancamentos() {
       pagadorId: usuarioId,
       ...(contaId ? { contaId } : {}),
     };
-
 
     if (editandoId !== null) {
       dispararEscrita(atualizarLancamento(editandoId, dados).catch((erro) => {
@@ -161,6 +159,8 @@ export default function TelaLancamentos() {
   const grupoDaCategoria = (id: string) => categorias.find((c) => c.id === id)?.grupo ?? '';
   const nomeMembro = (id: string) => perfilAtivo?.nomesMembros?.[id] ?? (id === usuarioId ? 'Você' : 'Alguém');
 
+  // Primeiro filtra os grupos disponíveis para o tipo selecionado,
+  // depois as categorias daquele grupo específico.
   const gruposDisponiveis = useMemo(
     () => Array.from(new Set(categorias.filter((c) => c.tipo === tipo).map((c) => c.grupo))).sort(),
     [categorias, tipo]
@@ -170,6 +170,7 @@ export default function TelaLancamentos() {
   const lancamentosFiltrados = useMemo(() => {
     return lancamentos
       .filter((l) => (filtroTipo === 'todos' ? true : l.tipo === filtroTipo))
+      .filter((l) => (filtroContaId ? l.contaId === filtroContaId : true))
       .filter((l) => {
         if (!busca.trim()) return true;
         const termo = busca.toLowerCase();
@@ -180,7 +181,73 @@ export default function TelaLancamentos() {
         );
       })
       .sort((a, b) => (a.data < b.data ? 1 : -1));
-  }, [lancamentos, filtroTipo, busca, categorias]);
+  }, [lancamentos, filtroTipo, filtroContaId, busca, categorias]);
+
+  // Repasses já feitos dentro desse perfil (acertos entre membros), sem
+  // isso, uma dívida já paga continuaria aparecendo pra sempre na lista.
+  useEffect(() => {
+    if (!ehSecundario || !perfilId) {
+      setRepasses([]);
+      return;
+    }
+    return escutarRepassesDoPerfil(perfilId, setRepasses);
+  }, [ehSecundario, perfilId]);
+
+  // Divisão de gastos: só faz sentido em perfil secundário com mais de um
+  // membro (com 1 membro só, "dividir" com ninguém não muda nada).
+  const divisao = useMemo(() => {
+    if (!ehSecundario || !perfilAtivo) return null;
+    const saldos = calcularDivisaoDeGastos(lancamentos, perfilAtivo.membros, repasses);
+    const acertos = calcularAcertos(saldos);
+    const total = saldos.reduce((soma, s) => soma + s.pago, 0);
+    return { saldos, acertos, total };
+  }, [ehSecundario, perfilAtivo, lancamentos, repasses]);
+
+  function abrirFormularioDeAcerto(index: number, acerto: Acerto) {
+    setAcertoAbertoIndex(index);
+    setContaDoAcerto('');
+    setValorDoAcerto(String(acerto.valor.toFixed(2)).replace('.', ','));
+    setDataDoAcerto(new Date().toISOString().slice(0, 10));
+  }
+
+  function fecharFormularioDeAcerto() {
+    setAcertoAbertoIndex(null);
+    setContaDoAcerto('');
+    setValorDoAcerto('');
+    setDataDoAcerto(new Date().toISOString().slice(0, 10));
+  }
+
+  function confirmarEnvioDeAcerto(acerto: Acerto) {
+    if (!contaDoAcerto) {
+      mostrarAlerta('Campo obrigatório', 'Selecione de qual das suas contas o dinheiro saiu.');
+      return;
+    }
+    const valorNumerico = parseFloat(valorDoAcerto.replace(',', '.'));
+    if (!valorNumerico || valorNumerico <= 0) {
+      mostrarAlerta('Valor inválido', 'Informe um valor maior que zero.');
+      return;
+    }
+    if (!perfilId || !usuarioId) return;
+
+    enviarRepasse(
+      {
+        perfilId,
+        perfilNome: perfilAtivo?.nome || 'Perfil compartilhado',
+        deUsuarioId: usuarioId,
+        deUsuarioNome: usuario?.displayName || usuario?.email || 'Alguém',
+        paraUsuarioId: acerto.paraUsuarioId,
+        paraUsuarioNome: nomeMembro(acerto.paraUsuarioId),
+        deContaId: contaDoAcerto,
+        valor: valorNumerico,
+        data: dataDoAcerto,
+      },
+      (erro) => {
+        console.error(erro);
+        mostrarAlerta('Erro ao registrar', mensagemDeErroSalvar());
+      }
+    );
+    fecharFormularioDeAcerto();
+  }
 
   if (!usuarioId) {
     return <Redirect href="/login" />;
@@ -271,16 +338,15 @@ export default function TelaLancamentos() {
         </TouchableOpacity>
       )}
 
-      <Text style={estilos.secaoTitulo}>Lançamentos</Text>
-
       {divisao && perfilAtivo && perfilAtivo.membros.length > 1 && (
         <View style={estilos.cartaoDivisao}>
-          <Text style={estilos.rotuloAcertos}>Divisão de gastos</Text>
+          <Text style={estilos.secaoTituloSemBorda}>Divisão de gastos — {perfilAtivo.nome}</Text>
           <Text style={estilos.dica}>Total gasto: {formatarMoeda(divisao.total)} · dividido igualmente entre {perfilAtivo.membros.length} pessoas</Text>
 
           {divisao.saldos.map((s) => (
             <View key={s.usuarioId} style={estilos.linhaSaldo}>
               <Text style={estilos.nomeMembro}>{nomeMembro(s.usuarioId)}</Text>
+              <Text style={estilos.detalheSaldo}>pagou {formatarMoeda(s.pago)} de {formatarMoeda(s.cota)}</Text>
               <Text style={[estilos.valorSaldo, { color: s.saldo >= 0 ? '#2ECC71' : '#E05C5C' }]}>
                 {s.saldo >= 0 ? `a receber ${formatarMoeda(s.saldo)}` : `deve ${formatarMoeda(-s.saldo)}`}
               </Text>
@@ -291,15 +357,74 @@ export default function TelaLancamentos() {
             <View style={{ marginTop: 10 }}>
               <Text style={estilos.rotuloAcertos}>Pra fechar a conta:</Text>
               {divisao.acertos.map((a, i) => (
-                <Text key={i} style={estilos.textoAcerto}>
-                  {nomeMembro(a.deUsuarioId)} deve pagar {formatarMoeda(a.valor)} para {nomeMembro(a.paraUsuarioId)}
-                </Text>
+                <View key={i} style={estilos.linhaAcerto}>
+                  <View style={estilos.linhaAcertoTopo}>
+                    <Text style={estilos.textoAcerto}>
+                      {nomeMembro(a.deUsuarioId)} deve pagar {formatarMoeda(a.valor)} para {nomeMembro(a.paraUsuarioId)}
+                    </Text>
+                    {a.deUsuarioId === usuarioId && acertoAbertoIndex !== i && (
+                      <TouchableOpacity onPress={() => abrirFormularioDeAcerto(i, a)}>
+                        <Text style={estilos.linkMarcarPago}>Marcar como enviado</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {a.deUsuarioId === usuarioId && acertoAbertoIndex === i && (
+                    <View style={estilos.formularioAcerto}>
+                      <Text style={estilos.dica}>De qual das suas contas saiu o dinheiro?</Text>
+                      {minhasContas.length === 0 ? (
+                        <Text style={estilos.dica}>
+                          Você ainda não tem contas no seu perfil Pessoal — cadastre uma em "Contas" primeiro.
+                        </Text>
+                      ) : (
+                        <View style={estilos.opcoes}>
+                          {minhasContas.map((c) => (
+                            <TouchableOpacity
+                              key={c.id}
+                              style={[estilos.opcaoPequena, contaDoAcerto === c.id && estilos.opcaoSelecionada]}
+                              onPress={() => setContaDoAcerto(c.id)}
+                            >
+                              <Text style={[estilos.opcaoTexto, contaDoAcerto === c.id && estilos.opcaoTextoSelecionado]}>{c.nome}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                      <Text style={estilos.label}>Valor (R$)</Text>
+                      <TextInput
+                        style={estilos.input}
+                        keyboardType="numeric"
+                        value={valorDoAcerto}
+                        onChangeText={setValorDoAcerto}
+                      />
+                      <Text style={estilos.label}>Data</Text>
+                      <TextInput
+                        style={estilos.input}
+                        placeholder="AAAA-MM-DD"
+                        value={dataDoAcerto}
+                        onChangeText={setDataDoAcerto}
+                      />
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                        <TouchableOpacity style={estilos.botaoConfirmarAcerto} onPress={() => confirmarEnvioDeAcerto(a)}>
+                          <Text style={estilos.botaoTexto}>Confirmar envio</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={estilos.botaoCancelarAcerto} onPress={fecharFormularioDeAcerto}>
+                          <Text style={estilos.botaoCancelarTexto}>Cancelar</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={estilos.dica}>
+                        {nomeMembro(a.paraUsuarioId)} vai ver que recebeu esse valor e escolher, do lado dela, pra
+                        qual conta ele foi.
+                      </Text>
+                    </View>
+                  )}
+                </View>
               ))}
-              <Text style={estilos.dica}>Registrar o pagamento desses acertos entra na próxima semana.</Text>
             </View>
           )}
         </View>
       )}
+
+      <Text style={estilos.secaoTitulo}>Lançamentos</Text>
 
       <TextInput
         style={estilos.input}
@@ -354,11 +479,19 @@ const estilos = StyleSheet.create({
   botaoCancelar: { borderWidth: 1, borderColor: '#2E7D9E', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 8 },
   botaoCancelarTexto: { color: '#2E7D9E', fontSize: 16, fontWeight: 'bold' },
   secaoTitulo: { fontSize: 16, fontWeight: 'bold', color: '#333', marginTop: 32, marginBottom: 8, borderTopWidth: 1, borderTopColor: '#E0E0E0', paddingTop: 16 },
+  secaoTituloSemBorda: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 4 },
   vazio: { fontSize: 14, color: '#777', fontStyle: 'italic', marginTop: 12 },
-  cartaoDivisao: { backgroundColor: '#F5F5F5', borderRadius: 8, padding: 14, marginTop: 24 },
+  cartaoDivisao: { backgroundColor: '#F5F5F5', borderRadius: 8, padding: 14, marginTop: 20 },
+  linhaSaldo: { marginTop: 10 },
+  nomeMembro: { fontSize: 14, fontWeight: 'bold', color: '#222' },
+  detalheSaldo: { fontSize: 12, color: '#666' },
+  valorSaldo: { fontSize: 13, fontWeight: 'bold', marginTop: 2 },
   rotuloAcertos: { fontSize: 13, fontWeight: 'bold', color: '#333' },
-  linhaSaldo: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  nomeMembro: { fontSize: 13, color: '#333' },
-  valorSaldo: { fontSize: 13, fontWeight: 'bold' },
-  textoAcerto: { fontSize: 13, color: '#333', marginTop: 4 },
+  textoAcerto: { fontSize: 13, color: '#333', flexShrink: 1, paddingRight: 8 },
+  linhaAcerto: { marginTop: 8 },
+  linhaAcertoTopo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  linkMarcarPago: { fontSize: 12, color: '#2E7D9E', fontWeight: '600' },
+  formularioAcerto: { backgroundColor: '#FFF', borderRadius: 8, padding: 10, marginTop: 6, borderWidth: 1, borderColor: '#E0E0E0' },
+  botaoConfirmarAcerto: { backgroundColor: '#2E7D9E', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', flex: 1 },
+  botaoCancelarAcerto: { borderWidth: 1, borderColor: '#2E7D9E', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', flex: 1 },
 });

@@ -36,7 +36,6 @@ export default function TelaTransferencias() {
     return cancelarContas;
   }, [perfilId]);
 
-
   useEffect(() => {
     if (!perfilId) return;
     return escutarTransferenciasPorContas(contas.map((c) => c.id), setTransferencias);
@@ -73,6 +72,8 @@ export default function TelaTransferencias() {
       return;
     }
 
+    // Ver TelaContas.tsx: não esperamos a escrita terminar pra liberar o
+    // formulário, só disparamos e tratamos erro real em segundo plano.
     dispararEscrita(
       adicionarTransferencia({ contaOrigemId, contaDestinoId, valor: valorNumerico, data, descricao }).catch((erro) => {
         console.error(erro);

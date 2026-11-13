@@ -30,7 +30,9 @@ export function escutarMetas(perfilId: string, callback: (metas: Meta[]) => void
       callback(lista);
     },
     (erro) => {
-
+      // Sem isso, um erro do Firestore travava a tela girando para sempre
+      // em silêncio, agora aparece no console (F12) e a lista volta
+      // vazia em vez de ficar esperando para sempre. É omesmo erro q tava dando na conta service
       console.error('[MetaService] Erro ao escutar metas:', erro);
       callback([]);
     }

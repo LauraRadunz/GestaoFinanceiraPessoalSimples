@@ -1,52 +1,60 @@
 import { router, Redirect } from 'expo-router';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import Cabecalho from '../componentes/Cabecalho';
+import { auth } from '../services/firebase';
 import { useUsuarioAtual } from '../hooks/useUsuarioAtual';
 import { usePerfilAtual } from '../contexto/PerfilContexto';
 import { sairUsuario } from '../services/AutenticacaoService';
-import { escutarConvitesPendentes, aceitarConvite, recusarConvite } from '../services/ConviteService';
 import { escutarContas } from '../services/ContaService';
 import { escutarCategorias } from '../services/CategoriaService';
 import { escutarLancamentosPorCategorias, escutarLancamentosPorContas } from '../services/LancamentoService';
 import { escutarTransferenciasPorContas } from '../services/TransferenciaService';
+import { escutarConvitesPendentes, aceitarConvite, recusarConvite } from '../services/ConviteService';
+import { escutarRepassesPendentesPara, escutarRepassesDoPerfil, receberRepasse } from '../services/RepasseService';
 import { calcularSaldoConta, calcularSaldoTotal, calcularResumoMes, calcularDivisaoDeGastos } from '../utils/calculos';
-import { confirmarAlerta } from '../utils/alerta';
+import { confirmarAlerta, mostrarAlerta } from '../utils/alerta';
 import { formatarMoeda, mesAtual, nomeDoMes } from '../utils/formato';
-import { Convite } from '../types/Convite';
 import { Conta } from '../types/Conta';
 import { Categoria } from '../types/Categoria';
 import { Lancamento } from '../types/Lancamento';
 import { Transferencia } from '../types/Transferencia';
-import { useEffect, useState } from 'react';
-import TelaCarregando from './TelaCarregando';
+import { Convite } from '../types/Convite';
+import { Repasse } from '../types/Repasse';
 
 export default function TelaInicio() {
-  const { usuario, carregando } = useUsuarioAtual();
+  const { usuario } = useUsuarioAtual();
   const usuarioId = usuario?.uid;
   const { perfis, perfilAtivo, carregandoPerfis, definirPerfilAtivo } = usePerfilAtual();
   const perfilId = perfilAtivo?.id;
   const ehPrincipal = perfilAtivo?.tipo === 'principal';
-  const [convites, setConvites] = useState<Convite[]>([]);
   const [contas, setContas] = useState<Conta[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [lancamentosDoPerfil, setLancamentosDoPerfil] = useState<Lancamento[]>([]);
   const [lancamentosDasContas, setLancamentosDasContas] = useState<Lancamento[]>([]);
   const [transferencias, setTransferencias] = useState<Transferencia[]>([]);
-  const [lancamentosDoPerfil, setLancamentosDoPerfil] = useState<Lancamento[]>([]);
+  const [convites, setConvites] = useState<Convite[]>([]);
+  const [contasProprias, setContasProprias] = useState<Conta[]>([]);
+  const [repassesPendentes, setRepassesPendentes] = useState<Repasse[]>([]);
+  const [repassesDoPerfilAtivo, setRepassesDoPerfilAtivo] = useState<Repasse[]>([]);
+  const [contaEscolhida, setContaEscolhida] = useState<Record<string, string>>({});
+  const [dataEscolhida, setDataEscolhida] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!usuario?.email) return;
-    return escutarConvitesPendentes(usuario.email, setConvites);
-  }, [usuario?.email]);
-
+    if (!perfilId) return;
+    const cancelarContas = escutarContas(perfilId, setContas);
+    const cancelarCategorias = escutarCategorias(perfilId, setCategorias);
+    return () => {
+      cancelarContas();
+      cancelarCategorias();
+    };
+  }, [perfilId]);
 
   useEffect(() => {
-    if (!perfilId || !ehPrincipal) {
-      setContas([]);
-      return;
-    }
-    return escutarContas(perfilId, setContas);
-  }, [perfilId, ehPrincipal]);
+    if (!perfilId) return;
+    return escutarLancamentosPorCategorias(categorias.map((c) => c.id), setLancamentosDoPerfil);
+  }, [perfilId, categorias]);
 
   useEffect(() => {
     if (!perfilId) return;
@@ -58,20 +66,47 @@ export default function TelaInicio() {
     return escutarTransferenciasPorContas(contas.map((c) => c.id), setTransferencias);
   }, [perfilId, contas]);
 
+  // Convites pendentes de compartilhamento de perfil, é assim que a
+  // pessoa "recebe uma solicitação para aceitar" ao fazer login.
+  useEffect(() => {
+    if (!usuario?.email) return;
+    return escutarConvitesPendentes(usuario.email, setConvites);
+  }, [usuario?.email]);
 
   useEffect(() => {
-    if (!perfilId) return;
-    return escutarCategorias(perfilId, setCategorias);
-  }, [perfilId]);
+    if (!usuarioId) return;
+    return escutarContas(usuarioId, setContasProprias);
+  }, [usuarioId]);
 
   useEffect(() => {
-    if (!perfilId) return;
-    return escutarLancamentosPorCategorias(categorias.map((c) => c.id), setLancamentosDoPerfil);
-  }, [perfilId, categorias]);
+    if (!usuarioId) return;
+    return escutarRepassesPendentesPara(usuarioId, setRepassesPendentes);
+  }, [usuarioId]);
 
-  if (carregando) {
-    return <TelaCarregando mensagem="Verificando sua conta..." />;
+  // Repasses do perfil secundário ativo, pra "descontar" o que já foi
+  // acertado do resumo de "sua parte" mostrado aqui na Home.
+  useEffect(() => {
+    if (ehPrincipal || !perfilId) {
+      setRepassesDoPerfilAtivo([]);
+      return;
+    }
+    return escutarRepassesDoPerfil(perfilId, setRepassesDoPerfilAtivo);
+  }, [ehPrincipal, perfilId]);
+
+  function confirmarRecebimento(repasse: Repasse) {
+    const contaId = contaEscolhida[repasse.id];
+    if (!contaId) {
+      mostrarAlerta('Campo obrigatório', 'Escolha pra qual das suas contas esse valor foi.');
+      return;
+    }
+    const data = dataEscolhida[repasse.id] || new Date().toISOString().slice(0, 10);
+    receberRepasse(repasse, contaId, data);
   }
+
+  // Enquanto o Firebase ainda não confirmou o usuário, ou se ninguém
+  // estiver logado, manda para a tela de login em vez de ficar esperando
+  // para sempre.
+  
   if (!usuarioId) {
     return <Redirect href="/login" />;
   }
@@ -92,10 +127,20 @@ export default function TelaInicio() {
     }
   }
 
+  const mes = mesAtual();
+  const resumo = calcularResumoMes(lancamentosDoPerfil, mes);
+  const total = calcularSaldoTotal(contas, lancamentosDasContas, transferencias);
+  const meuSaldoNaDivisao =
+    !ehPrincipal && perfilAtivo && perfilAtivo.membros.length > 1
+      ? calcularDivisaoDeGastos(lancamentosDoPerfil, perfilAtivo.membros, repassesDoPerfilAtivo).find(
+          (s) => s.usuarioId === usuarioId
+        )
+      : null;
+
   return (
     <ScrollView contentContainerStyle={estilos.container}>
       <View style={estilos.cabecalhoLinha}>
-        <Cabecalho titulo="Finanças App" subtitulo={usuario.displayName ? `Olá, ${usuario.displayName}` : 'Seu painel financeiro'} />
+        <Cabecalho titulo="Finanças App" subtitulo={auth.currentUser?.displayName ? `Olá, ${auth.currentUser.displayName}` : 'Seu painel financeiro'} />
         <TouchableOpacity style={estilos.botaoSair} onPress={sair}>
           <Text style={estilos.botaoSairTexto}>Sair</Text>
         </TouchableOpacity>
@@ -139,91 +184,135 @@ export default function TelaInicio() {
         </View>
       )}
 
-      {!carregandoPerfis && perfilAtivo && (
-        <View style={estilos.navContainer}>
-          {ehPrincipal && (
-            <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/contas')}>
-              <Text style={estilos.botaoNavTexto}>Contas</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/categorias')}>
-            <Text style={estilos.botaoNavTexto}>Categorias</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/lancamentos')}>
-            <Text style={estilos.botaoNavTexto}>Lançamentos</Text>
-          </TouchableOpacity>
-          {ehPrincipal && (
-            <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/transferencias')}>
-              <Text style={estilos.botaoNavTexto}>Transferências</Text>
-            </TouchableOpacity>
-          )}
-          {ehPrincipal && (
-            <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/metas')}>
-              <Text style={estilos.botaoNavTexto}>Metas</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={estilos.botaoNav} onPress={() => router.push('/orcamento')}>
-            <Text style={estilos.botaoNavTexto}>Orçamento</Text>
-          </TouchableOpacity>
+      {repassesPendentes.length > 0 && (
+        <View style={estilos.cartaoCaixinha}>
+          <Text style={estilos.rotulo}>Você recebeu</Text>
+          {repassesPendentes.map((r) => (
+            <View key={r.id} style={estilos.linhaCaixinha}>
+              <Text style={estilos.textoCaixinha}>
+                {formatarMoeda(r.valor)} de {r.deUsuarioNome}
+              </Text>
+              <Text style={estilos.dicaCaixinha}>Pra qual das suas contas esse dinheiro foi?</Text>
+              {contasProprias.length === 0 ? (
+                <Text style={estilos.dicaCaixinha}>Cadastre uma conta em "Contas" pra poder escolher.</Text>
+              ) : (
+                <View style={estilos.opcoesCaixinha}>
+                  {contasProprias.map((c) => (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[estilos.chipConta, contaEscolhida[r.id] === c.id && estilos.chipContaSelecionada]}
+                      onPress={() => setContaEscolhida((atual) => ({ ...atual, [r.id]: c.id }))}
+                    >
+                      <Text style={[estilos.chipContaTexto, contaEscolhida[r.id] === c.id && estilos.chipContaTextoSelecionado]}>
+                        {c.nome}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <Text style={estilos.dicaCaixinha}>Data em que caiu na conta</Text>
+              <TextInput
+                style={estilos.inputCaixinha}
+                placeholder="AAAA-MM-DD"
+                value={dataEscolhida[r.id] ?? new Date().toISOString().slice(0, 10)}
+                onChangeText={(v) => setDataEscolhida((atual) => ({ ...atual, [r.id]: v }))}
+              />
+              <TouchableOpacity style={estilos.botaoReceber} onPress={() => confirmarRecebimento(r)}>
+                <Text style={estilos.botaoConviteTexto}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
       )}
 
       {carregandoPerfis || !perfilAtivo ? (
-        <Text style={estilos.dica}>Carregando perfis...</Text>
+        <Text style={estilos.vazio}>Carregando perfil...</Text>
       ) : (
         <>
+          <View style={estilos.navContainer}>
+            {ehPrincipal && (
+              <TouchableOpacity style={estilos.botao} onPress={() => router.push('/contas')}>
+                <Text style={estilos.botaoTexto}>Contas</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={estilos.botao} onPress={() => router.push('/categorias')}>
+              <Text style={estilos.botaoTexto}>Categorias</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={estilos.botao} onPress={() => router.push('/lancamentos')}>
+              <Text style={estilos.botaoTexto}>Lançamentos</Text>
+            </TouchableOpacity>
+            {ehPrincipal && (
+              <TouchableOpacity style={estilos.botao} onPress={() => router.push('/transferencias')}>
+                <Text style={estilos.botaoTexto}>Transferências</Text>
+              </TouchableOpacity>
+            )}
+            {ehPrincipal && (
+              <TouchableOpacity style={estilos.botao} onPress={() => router.push('/metas')}>
+                <Text style={estilos.botaoTexto}>Metas</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={estilos.botao} onPress={() => router.push('/orcamento')}>
+              <Text style={estilos.botaoTexto}>Orçamento</Text>
+            </TouchableOpacity>
+          </View>
+
+          {meuSaldoNaDivisao && (
+            <View style={estilos.cartaoResumo}>
+              <Text style={estilos.rotulo}>Sua parte em {perfilAtivo?.nome}</Text>
+              <Text
+                style={[
+                  estilos.valorTotal,
+                  { fontSize: 20, color: meuSaldoNaDivisao.saldo >= 0 ? '#2ECC71' : '#E05C5C' },
+                ]}
+              >
+                {meuSaldoNaDivisao.saldo >= 0
+                  ? `A receber ${formatarMoeda(meuSaldoNaDivisao.saldo)}`
+                  : `Você deve ${formatarMoeda(-meuSaldoNaDivisao.saldo)}`}
+              </Text>
+              <Text style={estilos.rotuloPequeno}>Veja o detalhe em Lançamentos</Text>
+            </View>
+          )}
+
           {ehPrincipal && (
-            <View style={estilos.cartaoAviso}>
+            <View style={estilos.cartaoResumo}>
               <Text style={estilos.rotulo}>Saldo total</Text>
-              <Text style={estilos.saldoTotal}>{formatarMoeda(calcularSaldoTotal(contas, lancamentosDasContas, transferencias))}</Text>
-
-              {contas.length > 0 && (
-                <View style={{ marginTop: 12 }}>
-                  {contas.map((c) => (
-                    <View key={c.id} style={estilos.linhaConta}>
-                      <Text style={estilos.nomeConta}>{c.nome}</Text>
-                      <Text style={estilos.saldoConta}>{formatarMoeda(calcularSaldoConta(c, lancamentosDasContas, transferencias))}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
+              <Text style={estilos.valorTotal}>{formatarMoeda(total)}</Text>
             </View>
           )}
 
-          {!ehPrincipal && perfilAtivo.membros.length > 1 && (
-            <View style={estilos.cartaoAviso}>
-              <Text style={estilos.rotulo}>Sua parte em {perfilAtivo.nome}</Text>
-              {(() => {
-                const meuSaldo = calcularDivisaoDeGastos(lancamentosDoPerfil, perfilAtivo.membros).find((s) => s.usuarioId === usuarioId);
-                if (!meuSaldo) return null;
-                const emDia = Math.abs(meuSaldo.saldo) < 0.01;
-                return (
-                  <Text style={[estilos.saldoTotal, { color: emDia ? '#666' : meuSaldo.saldo > 0 ? '#2ECC71' : '#E05C5C', fontSize: 18 }]}>
-                    {emDia ? 'Você está em dia' : meuSaldo.saldo > 0 ? `Você tem a receber ${formatarMoeda(meuSaldo.saldo)}` : `Você deve ${formatarMoeda(-meuSaldo.saldo)}`}
-                  </Text>
-                );
-              })()}
-              <Text style={estilos.dica}>Veja o detalhe em Lançamentos</Text>
-            </View>
-          )}
-
-          <View style={estilos.cartaoAviso}>
-            <Text style={estilos.rotulo}>Resumo de {nomeDoMes(mesAtual())}</Text>
+          <View style={estilos.cartaoResumo}>
+            <Text style={estilos.rotulo}>Resumo de {nomeDoMes(mes)}</Text>
             <View style={estilos.linhaResumo}>
               <View>
-                <Text style={estilos.rotuloResumo}>Receitas</Text>
-                <Text style={[estilos.valorResumo, { color: '#2ECC71' }]}>{formatarMoeda(calcularResumoMes(lancamentosDoPerfil).receitas)}</Text>
+                <Text style={estilos.rotuloPequeno}>Receitas</Text>
+                <Text style={[estilos.valorResumo, { color: '#2ECC71' }]}>{formatarMoeda(resumo.receitas)}</Text>
               </View>
               <View>
-                <Text style={estilos.rotuloResumo}>Despesas</Text>
-                <Text style={[estilos.valorResumo, { color: '#E05C5C' }]}>{formatarMoeda(calcularResumoMes(lancamentosDoPerfil).despesas)}</Text>
+                <Text style={estilos.rotuloPequeno}>Despesas</Text>
+                <Text style={[estilos.valorResumo, { color: '#E05C5C' }]}>{formatarMoeda(resumo.despesas)}</Text>
               </View>
               <View>
-                <Text style={estilos.rotuloResumo}>Lucro do mês</Text>
-                <Text style={estilos.valorResumo}>{formatarMoeda(calcularResumoMes(lancamentosDoPerfil).saldo)}</Text>
+                <Text style={estilos.rotuloPequeno}>Lucro do mês</Text>
+                <Text style={estilos.valorResumo}>{formatarMoeda(resumo.saldo)}</Text>
               </View>
             </View>
           </View>
+
+          {ehPrincipal && (
+            <>
+              <Text style={estilos.secaoTitulo}>Saldo por conta</Text>
+              {contas.length === 0 ? (
+                <Text style={estilos.vazio}>Nenhuma conta cadastrada. Toque em "Contas" para começar.</Text>
+              ) : (
+                contas.map((conta) => (
+                  <View key={conta.id} style={estilos.linhaConta}>
+                    <Text style={estilos.nomeConta}>{conta.nome}</Text>
+                    <Text style={estilos.saldoConta}>{formatarMoeda(calcularSaldoConta(conta, lancamentosDasContas, transferencias))}</Text>
+                  </View>
+                ))
+              )}
+            </>
+          )}
         </>
       )}
     </ScrollView>
@@ -249,17 +338,32 @@ const estilos = StyleSheet.create({
   botaoAceitar: { backgroundColor: '#2ECC71', borderRadius: 6, paddingVertical: 6, paddingHorizontal: 12 },
   botaoRecusar: { backgroundColor: '#E05C5C', borderRadius: 6, paddingVertical: 6, paddingHorizontal: 12 },
   botaoConviteTexto: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
+  navContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 20, marginTop: 20, marginBottom: 20 },
+  botao: { backgroundColor: '#2E7D9E', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16 },
+  botaoTexto: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
+  cartaoResumo: { backgroundColor: '#F5F5F5', borderRadius: 8, padding: 16, marginHorizontal: 20, marginBottom: 12 },
   rotulo: { fontSize: 13, color: '#666', marginBottom: 4 },
-  cartaoAviso: { backgroundColor: '#F5F5F5', borderRadius: 8, padding: 14, marginHorizontal: 20, marginTop: 16 },
-  saldoTotal: { fontSize: 24, fontWeight: 'bold', color: '#2E7D9E' },
-  linhaConta: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  rotuloPequeno: { fontSize: 11, color: '#666' },
+  valorTotal: { fontSize: 26, fontWeight: 'bold', color: '#222' },
+  linhaResumo: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  valorResumo: { fontSize: 15, fontWeight: 'bold', color: '#222' },
+  secaoTitulo: { fontSize: 16, fontWeight: 'bold', color: '#333', marginHorizontal: 20, marginTop: 16, marginBottom: 8 },
+  vazio: { fontSize: 14, color: '#777', fontStyle: 'italic', marginHorizontal: 20 },
+  linhaConta: {
+    flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#F5F5F5',
+    borderRadius: 8, padding: 12, marginHorizontal: 20, marginBottom: 6,
+  },
   nomeConta: { fontSize: 14, color: '#222' },
   saldoConta: { fontSize: 14, fontWeight: 'bold', color: '#222' },
-  dica: { fontSize: 13, color: '#777', marginHorizontal: 20, marginTop: 16 },
-  navContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 20, marginTop: 16 },
-  botaoNav: { backgroundColor: '#2E7D9E', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16 },
-  botaoNavTexto: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-  linhaResumo: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  rotuloResumo: { fontSize: 12, color: '#666' },
-  valorResumo: { fontSize: 16, fontWeight: 'bold', color: '#222', marginTop: 2 },
+  cartaoCaixinha: { backgroundColor: '#E7F5EC', borderRadius: 8, padding: 14, marginHorizontal: 20, marginTop: 16 },
+  linhaCaixinha: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#D3EAD9' },
+  textoCaixinha: { fontSize: 14, fontWeight: 'bold', color: '#1E7A3B' },
+  dicaCaixinha: { fontSize: 12, color: '#4C7A5B', marginTop: 4 },
+  opcoesCaixinha: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  chipConta: { borderWidth: 1, borderColor: '#B7DCC2', borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12, backgroundColor: '#FFF' },
+  chipContaSelecionada: { backgroundColor: '#2ECC71', borderColor: '#2ECC71' },
+  chipContaTexto: { fontSize: 12, color: '#333' },
+  chipContaTextoSelecionado: { color: '#FFF', fontWeight: 'bold' },
+  inputCaixinha: { borderWidth: 1, borderColor: '#B7DCC2', borderRadius: 6, padding: 8, marginTop: 8, backgroundColor: '#FFF', maxWidth: 160, fontSize: 13 },
+  botaoReceber: { backgroundColor: '#2ECC71', borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12, marginTop: 10, alignSelf: 'flex-start' },
 });

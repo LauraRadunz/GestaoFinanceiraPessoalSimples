@@ -46,7 +46,6 @@ export default function TelaMetas() {
     };
   }, [perfilId]);
 
-
   useEffect(() => {
     if (!perfilId) return;
     return escutarLancamentosPorContas(contas.map((c) => c.id), setLancamentos);
@@ -81,7 +80,6 @@ export default function TelaMetas() {
     }
 
     const dados = { nome, valorAlvo: valorNumerico, prazo: prazo || undefined, contaId };
-
 
     if (editandoId !== null) {
       dispararEscrita(atualizarMeta(editandoId, dados).catch((erro) => {

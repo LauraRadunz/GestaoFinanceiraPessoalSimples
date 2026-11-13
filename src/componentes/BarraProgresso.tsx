@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 type BarraProgressoProps = {
-  percentual: number; 
+  percentual: number; // 0 a 1 (pode passar de 1 para indicar estouro)
   cor?: string;
 };
 

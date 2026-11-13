@@ -20,7 +20,6 @@ export async function listarLancamentos(): Promise<Lancamento[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Lancamento));
 }
 
-
 export function escutarLancamentosPorCategorias(
   categoriaIds: string[],
   callback: (lancamentos: Lancamento[]) => void

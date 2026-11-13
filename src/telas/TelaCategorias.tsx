@@ -33,7 +33,6 @@ export default function TelaCategorias() {
     return cancelar;
   }, [perfilId]);
 
-
   const gruposExistentes = useMemo(
     () => Array.from(new Set(categorias.map((c) => c.grupo))).sort(),
     [categorias]
@@ -56,7 +55,6 @@ export default function TelaCategorias() {
       mostrarAlerta('Campo obrigatório', 'Preencha o grupo e o nome da categoria.');
       return;
     }
-
 
     if (editandoId !== null) {
       dispararEscrita(atualizarCategoria(editandoId, { nome, grupo, tipo }).catch((erro) => {

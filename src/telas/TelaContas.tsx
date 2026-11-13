@@ -39,7 +39,6 @@ export default function TelaContas() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [transferencias, setTransferencias] = useState<Transferencia[]>([]);
 
-
   useEffect(() => {
     if (!perfilId) return;
     return escutarContas(perfilId, setContas);
@@ -58,7 +57,6 @@ export default function TelaContas() {
   if (!usuarioId) {
     return <Redirect href="/login" />;
   }
-
 
   if (!carregandoPerfis && perfilAtivo && perfilAtivo.tipo !== 'principal') {
     return (
