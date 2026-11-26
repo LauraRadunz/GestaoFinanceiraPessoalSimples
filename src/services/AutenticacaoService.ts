@@ -29,14 +29,16 @@ export async function sairUsuario(): Promise<void> {
   await signOut(auth);
 }
 
+// igual o getUsuarioLogado do professor, assim as telas nao precisam importar o firebase
+export function getUsuarioAtual(): User | null {
+  return auth.currentUser;
+}
+
+// chama o callback toda vez que alguem loga ou desloga, e tambem quando o app abre
 export function observarUsuario(callback: (usuario: User | null) => void) {
-  console.log('[Auth] Iniciando escuta de autenticação...');
   return onAuthStateChanged(
     auth,
-    (u) => {
-      console.log('[Auth] Resposta recebida. Usuário:', u ? u.email : 'nenhum (deslogado)');
-      callback(u);
-    },
+    (u) => callback(u),
     (erro) => {
       console.error('[Auth] Erro no listener de autenticação:', erro);
     }

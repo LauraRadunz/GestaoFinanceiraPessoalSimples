@@ -10,7 +10,7 @@ import { adicionarTransferencia, escutarTransferenciasPorContas, removerTransfer
 import { escutarContas } from '../services/ContaService';
 import { confirmarAlerta, mostrarAlerta } from '../utils/alerta';
 import { dispararEscrita, mensagemDeErroSalvar } from '../utils/limiteDeTempo';
-import { formatarMoeda, formatarData } from '../utils/formato';
+import { formatarMoeda, formatarData, hojeISO } from '../utils/formato';
 import { Transferencia } from '../types/Transferencia';
 import { Conta } from '../types/Conta';
 
@@ -23,7 +23,7 @@ export default function TelaTransferencias() {
   const [contaOrigemId, setContaOrigemId] = useState('');
   const [contaDestinoId, setContaDestinoId] = useState('');
   const [valor, setValor] = useState('');
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(hojeISO());
   const [descricao, setDescricao] = useState('');
   const [salvo, setSalvo] = useState(false);
 
@@ -49,7 +49,7 @@ export default function TelaTransferencias() {
     setContaOrigemId('');
     setContaDestinoId('');
     setValor('');
-    setData(new Date().toISOString().slice(0, 10));
+    setData(hojeISO());
     setDescricao('');
   }
 

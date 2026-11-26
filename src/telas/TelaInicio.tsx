@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import Cabecalho from '../componentes/Cabecalho';
-import { auth } from '../services/firebase';
 import { useUsuarioAtual } from '../hooks/useUsuarioAtual';
 import { usePerfilAtual } from '../contexto/PerfilContexto';
 import { sairUsuario } from '../services/AutenticacaoService';
@@ -15,7 +14,8 @@ import { escutarConvitesPendentes, aceitarConvite, recusarConvite } from '../ser
 import { escutarRepassesPendentesPara, escutarRepassesDoPerfil, receberRepasse } from '../services/RepasseService';
 import { calcularSaldoConta, calcularSaldoTotal, calcularResumoMes, calcularDivisaoDeGastos } from '../utils/calculos';
 import { confirmarAlerta, mostrarAlerta } from '../utils/alerta';
-import { formatarMoeda, mesAtual, nomeDoMes } from '../utils/formato';
+import { dispararEscrita, mensagemDeErroSalvar } from '../utils/limiteDeTempo';
+import { formatarMoeda, hojeISO, mesAtual, nomeDoMes } from '../utils/formato';
 import { Conta } from '../types/Conta';
 import { Categoria } from '../types/Categoria';
 import { Lancamento } from '../types/Lancamento';
@@ -99,8 +99,14 @@ export default function TelaInicio() {
       mostrarAlerta('Campo obrigatório', 'Escolha pra qual das suas contas esse valor foi.');
       return;
     }
-    const data = dataEscolhida[repasse.id] || new Date().toISOString().slice(0, 10);
-    receberRepasse(repasse, contaId, data);
+    const data = dataEscolhida[repasse.id] || hojeISO();
+    // depois que salva a caixinha some sozinha
+    dispararEscrita(
+      receberRepasse(repasse, contaId, data).catch((erro) => {
+        console.error(erro);
+        mostrarAlerta('Erro ao confirmar', mensagemDeErroSalvar());
+      })
+    );
   }
 
   // Enquanto o Firebase ainda não confirmou o usuário, ou se ninguém
@@ -120,10 +126,20 @@ export default function TelaInicio() {
 
   function responderConvite(convite: Convite, aceitar: boolean) {
     if (aceitar) {
-      aceitarConvite(convite, usuarioId!, usuario?.displayName || usuario?.email || undefined);
+      dispararEscrita(
+        aceitarConvite(convite, usuarioId!, usuario?.displayName || usuario?.email || undefined).catch((erro) => {
+          console.error(erro);
+          mostrarAlerta('Erro ao aceitar', mensagemDeErroSalvar());
+        })
+      );
       definirPerfilAtivo(convite.perfilId);
     } else {
-      recusarConvite(convite);
+      dispararEscrita(
+        recusarConvite(convite).catch((erro) => {
+          console.error(erro);
+          mostrarAlerta('Erro ao recusar', mensagemDeErroSalvar());
+        })
+      );
     }
   }
 
@@ -140,7 +156,7 @@ export default function TelaInicio() {
   return (
     <ScrollView contentContainerStyle={estilos.container}>
       <View style={estilos.cabecalhoLinha}>
-        <Cabecalho titulo="Finanças App" subtitulo={auth.currentUser?.displayName ? `Olá, ${auth.currentUser.displayName}` : 'Seu painel financeiro'} />
+        <Cabecalho titulo="Finanças App" subtitulo={usuario?.displayName ? `Olá, ${usuario.displayName}` : 'Seu painel financeiro'} />
         <TouchableOpacity style={estilos.botaoSair} onPress={sair}>
           <Text style={estilos.botaoSairTexto}>Sair</Text>
         </TouchableOpacity>
@@ -214,7 +230,7 @@ export default function TelaInicio() {
               <TextInput
                 style={estilos.inputCaixinha}
                 placeholder="AAAA-MM-DD"
-                value={dataEscolhida[r.id] ?? new Date().toISOString().slice(0, 10)}
+                value={dataEscolhida[r.id] ?? hojeISO()}
                 onChangeText={(v) => setDataEscolhida((atual) => ({ ...atual, [r.id]: v }))}
               />
               <TouchableOpacity style={estilos.botaoReceber} onPress={() => confirmarRecebimento(r)}>

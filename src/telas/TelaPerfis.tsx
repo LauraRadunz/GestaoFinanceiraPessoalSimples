@@ -8,6 +8,7 @@ import { usePerfilAtual } from '../contexto/PerfilContexto';
 import { criarPerfilSecundario, removerPerfil } from '../services/PerfilService';
 import { convidarParaPerfil } from '../services/ConviteService';
 import { confirmarAlerta, mostrarAlerta } from '../utils/alerta';
+import { dispararEscrita } from '../utils/limiteDeTempo';
 import { Perfil } from '../types/Perfil';
 
 export default function TelaPerfis() {
@@ -27,15 +28,21 @@ export default function TelaPerfis() {
     return <Redirect href="/login" />;
   }
 
-  function criarPerfil() {
+  // aqui tem await porque precisa do id do perfil novo pra deixar ele ativo
+  async function criarPerfil() {
     if (!nomeNovoPerfil.trim()) {
       mostrarAlerta('Campo obrigatório', 'Dê um nome para o novo perfil (ex.: Casa).');
       return;
     }
-    const perfil = criarPerfilSecundario(usuarioId!, nomeNovoPerfil, usuario?.displayName || usuario?.email || undefined);
-    setNomeNovoPerfil('');
-    setMostrarFormularioNovo(false);
-    definirPerfilAtivo(perfil.id);
+    try {
+      const perfil = await criarPerfilSecundario(usuarioId!, nomeNovoPerfil, usuario?.displayName || usuario?.email || undefined);
+      setNomeNovoPerfil('');
+      setMostrarFormularioNovo(false);
+      definirPerfilAtivo(perfil.id);
+    } catch (erro) {
+      console.error(erro);
+      mostrarAlerta('Erro ao criar perfil', 'Não foi possível criar o perfil. Tente novamente.');
+    }
   }
 
   function enviarConvite(perfil: Perfil) {
@@ -43,15 +50,17 @@ export default function TelaPerfis() {
       mostrarAlerta('Campo obrigatório', 'Informe o e-mail da pessoa que você quer convidar.');
       return;
     }
-    convidarParaPerfil(
-      {
+    dispararEscrita(
+      convidarParaPerfil({
         perfilId: perfil.id,
         perfilNome: perfil.nome,
         deUsuarioId: usuarioId!,
         deUsuarioNome: usuario?.displayName ?? usuario?.email ?? 'Alguém',
         paraEmail: emailConvite,
-      },
-      () => mostrarAlerta('Erro ao convidar', 'Não foi possível enviar o convite. Tente novamente.')
+      }).catch((erro) => {
+        console.error(erro);
+        mostrarAlerta('Erro ao convidar', 'Não foi possível enviar o convite. Tente novamente.');
+      })
     );
     mostrarAlerta('Convite enviado', `A pessoa vai ver o convite para "${perfil.nome}" assim que fizer login com esse e-mail (pode levar um instante para chegar).`);
     setEmailConvite('');
@@ -60,7 +69,12 @@ export default function TelaPerfis() {
 
   function excluirPerfil(perfil: Perfil) {
     confirmarAlerta('Excluir perfil', `Deseja excluir o perfil "${perfil.nome}"? Isso não apaga os dados já lançados nele.`, () => {
-      removerPerfil(perfil.id);
+      dispararEscrita(
+        removerPerfil(perfil.id).catch((erro) => {
+          console.error(erro);
+          mostrarAlerta('Erro ao excluir', 'Não foi possível excluir o perfil. Tente novamente.');
+        })
+      );
     });
   }
 

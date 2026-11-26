@@ -143,11 +143,19 @@ enxerga os dados daquele perfil.
 
 ## UC08 — Criar e Acompanhar Meta Financeira
 **Ator:** Usuário
-**Pré-condições:** Usuário está na tela "Metas", perfil principal ativo.
+**Pré-condições:** Usuário está na tela "Metas", em qualquer perfil
+(principal ou secundário) — a meta fica vinculada ao perfil ativo.
 **Fluxo principal:**
-1. Usuário informa nome, valor alvo, prazo e (opcionalmente) uma conta vinculada.
+1. Usuário informa nome, valor alvo e, opcionalmente, prazo e uma conta vinculada.
 2. Usuário toca em "Salvar meta".
 3. Sistema grava a meta e exibe o progresso (saldo atual da conta vinculada vs. valor alvo).
+
+**Fluxos alternativos:**
+- 1a. Nome em branco ou valor alvo inválido: sistema exibe alerta.
+- 1b. Sem conta vinculada (ou perfil secundário, que não tem contas próprias):
+  a meta é salva normalmente, mas o progresso fica em zero, já que não há
+  saldo de conta para acompanhar.
+- Usuário pode editar ou excluir a meta pelo próprio cartão.
 
 ---
 
@@ -170,7 +178,7 @@ enxerga os dados daquele perfil.
 **Pré-condições:** Existem lançamentos cadastrados no perfil ativo.
 **Fluxo principal:**
 1. Usuário acessa a tela "Lançamentos".
-2. Usuário aplica filtros (conta, tipo) e/ou digita um termo de busca.
+2. Usuário aplica filtros (tipo, conta, categoria e mês no formato AAAA-MM) e/ou digita um termo de busca (descrição, categoria ou grupo). Os filtros podem ser combinados; deixar um filtro em "Todos"/vazio desliga aquele filtro.
 3. Sistema exibe a lista filtrada (filtragem feita localmente, após buscar os dados do Firestore).
 
 ---

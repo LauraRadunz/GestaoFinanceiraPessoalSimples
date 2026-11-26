@@ -1,8 +1,8 @@
-import { collection, doc, setDoc, updateDoc, query, where, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { collection, doc, query, where, onSnapshot, writeBatch, Unsubscribe } from 'firebase/firestore';
 import { db } from './firebase';
 import { Repasse } from '../types/Repasse';
-import { adicionarLancamento } from './LancamentoService';
-import { garantirCategoriaRepasse } from './CategoriaService';
+import { incluirLancamentoNoLote } from './LancamentoService';
+import { incluirCategoriaRepasseNoLote } from './CategoriaService';
 
 const COLECAO = 'repasses';
 
@@ -18,8 +18,22 @@ type DadosNovoRepasse = {
   data: string; // AAAA-MM-DD — data da despesa lançada no perfil de quem envia
 };
 
+// enviar repasse grava 3 coisas: a categoria, a despesa e o repasse
+// com o writeBatch vai tudo junto, ou grava tudo ou nao grava nada
+// antes era separado e se uma falhasse ficava despesa sem repasse
+export async function enviarRepasse(dados: DadosNovoRepasse): Promise<Repasse> {
+  const lote = writeBatch(db);
 
-export function enviarRepasse(dados: DadosNovoRepasse, aoFalhar?: (erro: unknown) => void): Repasse {
+  const categoriaId = incluirCategoriaRepasseNoLote(lote, dados.deUsuarioId, 'despesa');
+  const lancamentoDespesaId = incluirLancamentoNoLote(lote, {
+    tipo: 'despesa',
+    contaId: dados.deContaId,
+    categoriaId,
+    valor: dados.valor,
+    data: dados.data,
+    descricao: `Repasse para ${dados.paraUsuarioNome} (${dados.perfilNome})`,
+  });
+
   const registro: Omit<Repasse, 'id'> = {
     perfilId: dados.perfilId,
     perfilNome: dados.perfilNome,
@@ -31,33 +45,16 @@ export function enviarRepasse(dados: DadosNovoRepasse, aoFalhar?: (erro: unknown
     valor: dados.valor,
     status: 'pendente',
     criadoEm: new Date().toISOString(),
+    lancamentoDespesaId, // ja tem o id entao salva junto
   };
   const ref = doc(collection(db, COLECAO));
+  lote.set(ref, registro);
 
-  const categoriaId = garantirCategoriaRepasse(dados.deUsuarioId, 'despesa');
-  adicionarLancamento({
-    tipo: 'despesa',
-    contaId: dados.deContaId,
-    categoriaId,
-    valor: dados.valor,
-    data: dados.data,
-    descricao: `Repasse para ${dados.paraUsuarioNome} (${dados.perfilNome})`,
-  })
-    .then((lancamento) => {
-      updateDoc(ref, { lancamentoDespesaId: lancamento.id }).catch(() => {});
-    })
-    .catch((erro) => {
-      console.error('[RepasseService] Falha ao lançar a despesa do repasse:', erro);
-      aoFalhar?.(erro);
-    });
-
-  setDoc(ref, registro).catch((erro) => {
-    console.error('[RepasseService] Falha ao enviar repasse:', erro);
-    aoFalhar?.(erro);
-  });
+  await lote.commit();
   return { id: ref.id, ...registro };
 }
 
+// caixinha do painel, repasses que mandaram pra mim e ainda nao confirmei
 export function escutarRepassesPendentesPara(usuarioId: string, callback: (repasses: Repasse[]) => void): Unsubscribe {
   const q = query(
     collection(db, COLECAO),
@@ -74,6 +71,7 @@ export function escutarRepassesPendentesPara(usuarioId: string, callback: (repas
   );
 }
 
+// repasses do perfil, usa pra tirar da divisao o que ja foi pago
 export function escutarRepassesDoPerfil(perfilId: string, callback: (repasses: Repasse[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));
   return onSnapshot(
@@ -86,25 +84,26 @@ export function escutarRepassesDoPerfil(perfilId: string, callback: (repasses: R
   );
 }
 
-export function receberRepasse(repasse: Repasse, contaDestinoId: string, data: string): void {
-  const categoriaId = garantirCategoriaRepasse(repasse.paraUsuarioId, 'receita');
-  adicionarLancamento({
+// mesma ideia do enviar, a receita e o status vao juntos
+export async function receberRepasse(repasse: Repasse, contaDestinoId: string, data: string): Promise<void> {
+  const lote = writeBatch(db);
+
+  const categoriaId = incluirCategoriaRepasseNoLote(lote, repasse.paraUsuarioId, 'receita');
+  const lancamentoReceitaId = incluirLancamentoNoLote(lote, {
     tipo: 'receita',
     contaId: contaDestinoId,
     categoriaId,
     valor: repasse.valor,
     data,
     descricao: `Recebido de ${repasse.deUsuarioNome} (${repasse.perfilNome})`,
-  })
-    .then((lancamento) => {
-      updateDoc(doc(db, COLECAO, repasse.id), {
-        status: 'recebido',
-        contaDestinoId,
-        recebidoEm: new Date().toISOString(),
-        lancamentoReceitaId: lancamento.id,
-      }).catch((erro) => console.error('[RepasseService] Falha ao confirmar recebimento:', erro));
-    })
-    .catch((erro) => {
-      console.error('[RepasseService] Falha ao lançar a receita do repasse:', erro);
-    });
+  });
+
+  lote.update(doc(db, COLECAO, repasse.id), {
+    status: 'recebido',
+    contaDestinoId,
+    recebidoEm: new Date().toISOString(),
+    lancamentoReceitaId,
+  });
+
+  await lote.commit();
 }

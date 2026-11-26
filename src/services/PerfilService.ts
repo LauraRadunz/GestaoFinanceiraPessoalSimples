@@ -2,14 +2,12 @@ import {
   collection,
   doc,
   setDoc,
-  getDoc,
   updateDoc,
   deleteDoc,
   query,
   where,
   onSnapshot,
   arrayUnion,
-  arrayRemove,
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -17,17 +15,16 @@ import { Perfil } from '../types/Perfil';
 
 const COLECAO = 'perfis';
 
-
-function criarPerfil(id: string, dados: Omit<Perfil, 'id'>): Perfil {
+// setDoc em vez de addDoc porque a gente escolhe o id
+// com o merge, se rodar de novo so atualiza o mesmo documento
+async function criarPerfil(id: string, dados: Omit<Perfil, 'id'>): Promise<Perfil> {
   const ref = doc(db, COLECAO, id);
-  setDoc(ref, dados, { merge: true }).catch((erro) => {
-    console.error('[PerfilService] Falha ao criar perfil:', erro);
-  });
+  await setDoc(ref, dados, { merge: true });
   return { id: ref.id, ...dados };
 }
 
-
-export function criarPerfilPrincipal(usuarioId: string, nomeExibicao?: string): Perfil {
+// o id do Pessoal é o uid do usuario, por isso nunca duplica
+export async function criarPerfilPrincipal(usuarioId: string, nomeExibicao?: string): Promise<Perfil> {
   return criarPerfil(usuarioId, {
     nome: 'Pessoal',
     tipo: 'principal',
@@ -37,8 +34,8 @@ export function criarPerfilPrincipal(usuarioId: string, nomeExibicao?: string): 
   });
 }
 
-
-export function criarPerfilSecundario(usuarioId: string, nome: string, nomeExibicao?: string): Perfil {
+// secundario pode ter varios entao o id é aleatorio, essa linha so gera o id
+export async function criarPerfilSecundario(usuarioId: string, nome: string, nomeExibicao?: string): Promise<Perfil> {
   const idAleatorio = doc(collection(db, COLECAO)).id;
   return criarPerfil(idAleatorio, {
     nome: nome.trim(),
@@ -49,6 +46,7 @@ export function criarPerfilSecundario(usuarioId: string, nome: string, nomeExibi
   });
 }
 
+// traz todos os perfis que o usuario é membro, o Pessoal e os compartilhados
 export function escutarPerfis(usuarioId: string, callback: (perfis: Perfil[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('membros', 'array-contains', usuarioId));
   return onSnapshot(
@@ -63,35 +61,15 @@ export function escutarPerfis(usuarioId: string, callback: (perfis: Perfil[]) =>
   );
 }
 
-export async function buscarPerfilPorId(id: string): Promise<Perfil | undefined> {
-  const snapshot = await getDoc(doc(db, COLECAO, id));
-  if (!snapshot.exists()) return undefined;
-  return { id: snapshot.id, ...snapshot.data() } as Perfil;
+export async function removerPerfil(id: string): Promise<void> {
+  await deleteDoc(doc(db, COLECAO, id));
 }
 
-export function renomearPerfil(id: string, nome: string): void {
-  updateDoc(doc(db, COLECAO, id), { nome: nome.trim() }).catch((erro) => {
-    console.error('[PerfilService] Falha ao renomear perfil:', erro);
-  });
-}
-
-export function removerPerfil(id: string): void {
-  deleteDoc(doc(db, COLECAO, id)).catch((erro) => {
-    console.error('[PerfilService] Falha ao remover perfil:', erro);
-  });
-}
-
-export function adicionarMembro(perfilId: string, usuarioId: string, nomeExibicao?: string): void {
-  updateDoc(doc(db, COLECAO, perfilId), {
+// arrayUnion nao deixa repetir o id na lista
+// e o nomesMembros com ponto atualiza so o nome dessa pessoa
+export async function adicionarMembro(perfilId: string, usuarioId: string, nomeExibicao?: string): Promise<void> {
+  await updateDoc(doc(db, COLECAO, perfilId), {
     membros: arrayUnion(usuarioId),
     [`nomesMembros.${usuarioId}`]: nomeExibicao || 'Alguém',
-  }).catch((erro) => {
-    console.error('[PerfilService] Falha ao adicionar membro:', erro);
-  });
-}
-
-export function removerMembro(perfilId: string, usuarioId: string): void {
-  updateDoc(doc(db, COLECAO, perfilId), { membros: arrayRemove(usuarioId) }).catch((erro) => {
-    console.error('[PerfilService] Falha ao remover membro:', erro);
   });
 }

@@ -2,7 +2,6 @@ import {
   collection,
   doc,
   addDoc,
-  getDocs,
   deleteDoc,
   query,
   where,
@@ -14,12 +13,7 @@ import { Orcamento } from '../types/Orcamento';
 
 const COLECAO = 'orcamentos';
 
-export async function listarOrcamentos(): Promise<Orcamento[]> {
-  const snapshot = await getDocs(collection(db, COLECAO));
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Orcamento));
-}
-
-
+// mesmo join manual do lancamento, orcamento é da categoria
 export function escutarOrcamentosPorCategorias(
   categoriaIds: string[],
   callback: (orcamentos: Orcamento[]) => void

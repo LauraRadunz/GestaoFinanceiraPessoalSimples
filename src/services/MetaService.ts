@@ -2,7 +2,6 @@ import {
   collection,
   doc,
   addDoc,
-  getDocs,
   updateDoc,
   deleteDoc,
   query,
@@ -14,12 +13,6 @@ import { db } from './firebase';
 import { Meta } from '../types/Meta';
 
 const COLECAO = 'metas';
-
-export async function listarMetas(perfilId: string): Promise<Meta[]> {
-  const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Meta));
-}
 
 export function escutarMetas(perfilId: string, callback: (metas: Meta[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));

@@ -1,7 +1,7 @@
 import {
   collection,
   doc,
-  setDoc,
+  addDoc,
   updateDoc,
   query,
   where,
@@ -22,24 +22,23 @@ type DadosNovoConvite = {
   paraEmail: string;
 };
 
-export function convidarParaPerfil(dados: DadosNovoConvite, aoFalhar?: (erro: unknown) => void): Convite {
+// o convite vai pelo email porque a pessoa pode nem ter conta ainda
+// quando ela logar com esse email o convite aparece no painel dela
+export async function convidarParaPerfil(dados: DadosNovoConvite): Promise<Convite> {
   const registro: Omit<Convite, 'id'> = {
     perfilId: dados.perfilId,
     perfilNome: dados.perfilNome,
     deUsuarioId: dados.deUsuarioId,
     deUsuarioNome: dados.deUsuarioNome || 'Alguém',
-    paraEmail: dados.paraEmail.trim().toLowerCase(),
+    paraEmail: dados.paraEmail.trim().toLowerCase(), // minusculo pra bater com o email do login
     status: 'pendente',
     criadoEm: new Date().toISOString(),
   };
-  const ref = doc(collection(db, COLECAO));
-  setDoc(ref, registro).catch((erro) => {
-    console.error('[ConviteService] Falha ao enviar convite:', erro);
-    aoFalhar?.(erro);
-  });
+  const ref = await addDoc(collection(db, COLECAO), registro);
   return { id: ref.id, ...registro };
 }
 
+// dois where juntos, tem que bater os dois
 export function escutarConvitesPendentes(email: string, callback: (convites: Convite[]) => void): Unsubscribe {
   const q = query(
     collection(db, COLECAO),
@@ -58,16 +57,12 @@ export function escutarConvitesPendentes(email: string, callback: (convites: Con
   );
 }
 
-export function aceitarConvite(convite: Convite, usuarioId: string, nomeExibicao?: string): void {
-
-  adicionarMembro(convite.perfilId, usuarioId, nomeExibicao);
-  updateDoc(doc(db, COLECAO, convite.id), { status: 'aceito' }).catch((erro) => {
-    console.error('[ConviteService] Falha ao aceitar convite:', erro);
-  });
+// aceitar é entrar nos membros do perfil e marcar o convite como aceito
+export async function aceitarConvite(convite: Convite, usuarioId: string, nomeExibicao?: string): Promise<void> {
+  await adicionarMembro(convite.perfilId, usuarioId, nomeExibicao);
+  await updateDoc(doc(db, COLECAO, convite.id), { status: 'aceito' });
 }
 
-export function recusarConvite(convite: Convite): void {
-  updateDoc(doc(db, COLECAO, convite.id), { status: 'recusado' }).catch((erro) => {
-    console.error('[ConviteService] Falha ao recusar convite:', erro);
-  });
+export async function recusarConvite(convite: Convite): Promise<void> {
+  await updateDoc(doc(db, COLECAO, convite.id), { status: 'recusado' });
 }

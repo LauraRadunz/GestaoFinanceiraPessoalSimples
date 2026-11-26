@@ -29,6 +29,7 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
   const [perfilAtivoId, setPerfilAtivoId] = useState<string | null>(null);
   const criandoPerfilPara = useRef<string | null>(null);
 
+  // quando loga ou desloga zera tudo e começa a escutar os perfis do usuario
   useEffect(() => {
     setPerfilAtivoId(null);
     criandoPerfilPara.current = null;
@@ -46,19 +47,20 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
   }, [usuarioId]);
 
 
+  // se carregou e o usuario nao tem nenhum perfil cria o Pessoal
+  // o useRef é pra nao criar duas vezes enquanto o primeiro ainda nao voltou do banco
   useEffect(() => {
     if (!usuarioId || carregandoPerfis || perfis.length > 0) return;
     if (criandoPerfilPara.current === usuarioId) return;
     criandoPerfilPara.current = usuarioId;
-    try {
-      criarPerfilPrincipal(usuarioId, nomeExibicao);
-    } catch (erro) {
+    criarPerfilPrincipal(usuarioId, nomeExibicao).catch((erro) => {
       console.error('[PerfilContexto] Não foi possível criar o perfil principal automaticamente:', erro);
-      criandoPerfilPara.current = null;
-    }
+      criandoPerfilPara.current = null; // libera pra tentar de novo
+    });
   }, [usuarioId, carregandoPerfis, perfis.length, nomeExibicao]);
 
 
+  // se nao tem perfil ativo ou o ativo foi excluído volta pro Pessoal
   useEffect(() => {
     if (perfis.length === 0) return;
     const aindaExiste = perfis.some((p) => p.id === perfilAtivoId);

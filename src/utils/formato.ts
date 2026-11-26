@@ -2,9 +2,18 @@ export function formatarMoeda(valor: number): string {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// nao da pra usar new Date aqui, ele le como UTC e no Brasil vira o dia anterior
+// entao so troca a ordem do texto
 export function formatarData(iso: string): string {
-  const data = new Date(iso);
-  return data.toLocaleDateString('pt-BR');
+  const [ano, mes, dia] = iso.slice(0, 10).split('-');
+  if (!ano || !mes || !dia) return iso;
+  return `${dia}/${mes}/${ano}`;
+}
+
+// data de hoje no fuso daqui, o toISOString usava UTC e depois das 21h ja dava o dia seguinte
+export function hojeISO(data: Date = new Date()): string {
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${mesAtual(data)}-${dia}`;
 }
 
 export function mesAtual(data: Date = new Date()): string {

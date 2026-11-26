@@ -15,7 +15,7 @@ Legenda de prioridade: **Alta**, **Média**, **Baixa**
 | RF07 | O sistema deve exibir um painel (dashboard) com o saldo total, saldo por conta e resumo do mês. | Alta |
 | RF08 | O sistema deve permitir criar e acompanhar metas financeiras (valor alvo, prazo, progresso). | Média |
 | RF09 | O sistema deve permitir definir um orçamento planejado por categoria e mês, comparando com o valor realizado. | Média |
-| RF10 | O sistema deve permitir filtrar e buscar lançamentos por conta, categoria, tipo e período. | Média |
+| RF10 | O sistema deve permitir filtrar e buscar lançamentos por conta, categoria, tipo e período (mês). | Média |
 | RF11 | O sistema deve persistir os dados na nuvem (Firebase Firestore), mantendo-os disponíveis entre sessões e dispositivos. | Alta |
 | RF12 | O sistema deve permitir que o usuário crie uma conta (cadastro) e entre com e-mail e senha (login). | Alta |
 | RF13 | Cada usuário deve enxergar e gerenciar apenas os dados dos perfis a que pertence, mesmo com múltiplos usuários usando o app. | Alta |

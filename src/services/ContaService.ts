@@ -2,8 +2,6 @@ import {
   collection,
   doc,
   addDoc,
-  getDoc,
-  getDocs,
   updateDoc,
   deleteDoc,
   query,
@@ -16,13 +14,8 @@ import { Conta } from '../types/Conta';
 
 const COLECAO = 'contas';
 
-export async function listarContas(perfilId: string): Promise<Conta[]> {
-  const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Conta));
-}
-
-
+// o professor usa getDocs que busca uma vez so, a gente usa onSnapshot que fica escutando
+// e atualiza sozinho quando muda alguma coisa
 export function escutarContas(perfilId: string, callback: (contas: Conta[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));
   return onSnapshot(
@@ -36,13 +29,6 @@ export function escutarContas(perfilId: string, callback: (contas: Conta[]) => v
       callback([]);
     }
   );
-}
-
-export async function buscarContaPorId(id: string): Promise<Conta | undefined> {
-  const ref = doc(db, COLECAO, id);
-  const snapshot = await getDoc(ref);
-  if (!snapshot.exists()) return undefined;
-  return { id: snapshot.id, ...snapshot.data() } as Conta;
 }
 
 export async function adicionarConta(dados: Omit<Conta, 'id'>): Promise<Conta> {

@@ -2,25 +2,18 @@ import {
   collection,
   doc,
   addDoc,
-  setDoc,
-  getDocs,
   updateDoc,
   deleteDoc,
   query,
   where,
   onSnapshot,
   Unsubscribe,
+  WriteBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Categoria, TipoCategoria } from '../types/Categoria';
 
 const COLECAO = 'categorias';
-
-export async function listarCategorias(perfilId: string): Promise<Categoria[]> {
-  const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Categoria));
-}
 
 export function escutarCategorias(perfilId: string, callback: (categorias: Categoria[]) => void): Unsubscribe {
   const q = query(collection(db, COLECAO), where('perfilId', '==', perfilId));
@@ -56,11 +49,13 @@ export async function removerCategoria(id: string): Promise<void> {
   await deleteDoc(ref);
 }
 
-export function garantirCategoriaRepasse(usuarioId: string, tipo: TipoCategoria): string {
+// categoria dos repasses, criada automatico
+// o id é fixo igual o do perfil Pessoal, entao nunca duplica
+// ela nao grava sozinha, so entra no lote do RepasseService pra ir tudo junto
+export function incluirCategoriaRepasseNoLote(lote: WriteBatch, usuarioId: string, tipo: TipoCategoria): string {
   const id = `repasse-${tipo}-${usuarioId}`;
-  const ref = doc(db, COLECAO, id);
-  setDoc(
-    ref,
+  lote.set(
+    doc(db, COLECAO, id),
     {
       perfilId: usuarioId,
       nome: tipo === 'despesa' ? 'Repasses enviados' : 'Repasses recebidos',
@@ -68,8 +63,6 @@ export function garantirCategoriaRepasse(usuarioId: string, tipo: TipoCategoria)
       grupo: 'Divisão de gastos',
     },
     { merge: true }
-  ).catch((erro) => {
-    console.error('[CategoriaService] Falha ao garantir categoria de repasse:', erro);
-  });
+  );
   return id;
 }

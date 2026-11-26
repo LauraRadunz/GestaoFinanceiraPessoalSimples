@@ -2,7 +2,6 @@ import {
   collection,
   doc,
   addDoc,
-  getDocs,
   deleteDoc,
   query,
   where,
@@ -14,11 +13,8 @@ import { Transferencia } from '../types/Transferencia';
 
 const COLECAO = 'transferencias';
 
-export async function listarTransferencias(): Promise<Transferencia[]> {
-  const snapshot = await getDocs(collection(db, COLECAO));
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Transferencia));
-}
-
+// transferencia nao tem perfilId, a dona é a conta de origem
+// as duas contas sao sempre do Pessoal entao buscar pela origem ja basta
 export function escutarTransferenciasPorContas(
   contaIds: string[],
   callback: (transferencias: Transferencia[]) => void

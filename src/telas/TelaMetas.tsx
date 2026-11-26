@@ -79,6 +79,7 @@ export default function TelaMetas() {
       return;
     }
 
+    // prazo e conta sao opcionais, se vier vazio so nao salva
     const dados = { nome, valorAlvo: valorNumerico, prazo: prazo || undefined, contaId };
 
     if (editandoId !== null) {
@@ -116,6 +117,7 @@ export default function TelaMetas() {
     });
   }
 
+  // progresso é o saldo da conta vinculada, sem conta fica 0
   function valorAtualDaMeta(meta: Meta): number {
     if (!meta.contaId) return 0;
     const conta = contas.find((c) => c.id === meta.contaId);

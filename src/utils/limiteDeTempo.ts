@@ -1,3 +1,6 @@
+// nas telas a gente nao usa await pra salvar porque o addDoc so termina quando o servidor responde
+// mas o onSnapshot ja mostra o item na lista na hora, entao nao precisa travar a tela esperando
+// se der erro aparece o alerta depois
 
 export function dispararEscrita(promessa: Promise<unknown>): void {
   promessa.catch((erro) => {

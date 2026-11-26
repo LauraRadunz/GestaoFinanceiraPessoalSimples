@@ -14,7 +14,7 @@ import { escutarRepassesDoPerfil, enviarRepasse } from '../services/RepasseServi
 import { confirmarAlerta, mostrarAlerta } from '../utils/alerta';
 import { dispararEscrita, mensagemDeErroSalvar } from '../utils/limiteDeTempo';
 import { calcularDivisaoDeGastos, calcularAcertos, Acerto } from '../utils/calculos';
-import { formatarMoeda } from '../utils/formato';
+import { formatarMoeda, hojeISO } from '../utils/formato';
 import { Lancamento } from '../types/Lancamento';
 import { Conta } from '../types/Conta';
 import { Categoria, TipoCategoria } from '../types/Categoria';
@@ -34,7 +34,7 @@ export default function TelaLancamentos() {
   const [grupoSelecionado, setGrupoSelecionado] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [valor, setValor] = useState('');
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(hojeISO());
   const [descricao, setDescricao] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
@@ -48,10 +48,12 @@ export default function TelaLancamentos() {
   const [acertoAbertoIndex, setAcertoAbertoIndex] = useState<number | null>(null);
   const [contaDoAcerto, setContaDoAcerto] = useState('');
   const [valorDoAcerto, setValorDoAcerto] = useState('');
-  const [dataDoAcerto, setDataDoAcerto] = useState(new Date().toISOString().slice(0, 10));
+  const [dataDoAcerto, setDataDoAcerto] = useState(hojeISO());
 
   const [filtroTipo, setFiltroTipo] = useState<'todos' | TipoCategoria>('todos');
   const [filtroContaId, setFiltroContaId] = useState<string | null>(null);
+  const [filtroCategoriaId, setFiltroCategoriaId] = useState('');
+  const [filtroMes, setFiltroMes] = useState(''); // AAAA-MM; vazio = todos os meses
   const [busca, setBusca] = useState('');
 
   useEffect(() => {
@@ -74,6 +76,7 @@ export default function TelaLancamentos() {
 
   const contasSelecionaveis = ehSecundario ? minhasContas : contas;
 
+  // primeiro carrega as categorias, depois os lancamentos delas, por isso categorias ta nas dependencias
   useEffect(() => {
     if (!perfilId) return;
     return escutarLancamentosPorCategorias(categorias.map((c) => c.id), setLancamentos);
@@ -85,7 +88,7 @@ export default function TelaLancamentos() {
     setGrupoSelecionado('');
     setCategoriaId('');
     setValor('');
-    setData(new Date().toISOString().slice(0, 10));
+    setData(hojeISO());
     setDescricao('');
     setEditandoId(null);
   }
@@ -111,8 +114,8 @@ export default function TelaLancamentos() {
       valor: valorNumerico,
       data,
       descricao,
-      pagadorId: usuarioId,
-      ...(contaId ? { contaId } : {}),
+      pagadorId: usuarioId, // quem ta logado é quem pagou, usa na divisao
+      contaId: contaId || undefined, // sem conta nao salva o campo
     };
 
     if (editandoId !== null) {
@@ -171,6 +174,9 @@ export default function TelaLancamentos() {
     return lancamentos
       .filter((l) => (filtroTipo === 'todos' ? true : l.tipo === filtroTipo))
       .filter((l) => (filtroContaId ? l.contaId === filtroContaId : true))
+      .filter((l) => (filtroCategoriaId ? l.categoriaId === filtroCategoriaId : true))
+      // a data é salva tipo 2026-11-26, entao começar com 2026-11 é novembro
+      .filter((l) => (filtroMes.trim() ? l.data.startsWith(filtroMes.trim()) : true))
       .filter((l) => {
         if (!busca.trim()) return true;
         const termo = busca.toLowerCase();
@@ -181,7 +187,7 @@ export default function TelaLancamentos() {
         );
       })
       .sort((a, b) => (a.data < b.data ? 1 : -1));
-  }, [lancamentos, filtroTipo, filtroContaId, busca, categorias]);
+  }, [lancamentos, filtroTipo, filtroContaId, filtroCategoriaId, filtroMes, busca, categorias]);
 
   // Repasses já feitos dentro desse perfil (acertos entre membros), sem
   // isso, uma dívida já paga continuaria aparecendo pra sempre na lista.
@@ -207,14 +213,14 @@ export default function TelaLancamentos() {
     setAcertoAbertoIndex(index);
     setContaDoAcerto('');
     setValorDoAcerto(String(acerto.valor.toFixed(2)).replace('.', ','));
-    setDataDoAcerto(new Date().toISOString().slice(0, 10));
+    setDataDoAcerto(hojeISO());
   }
 
   function fecharFormularioDeAcerto() {
     setAcertoAbertoIndex(null);
     setContaDoAcerto('');
     setValorDoAcerto('');
-    setDataDoAcerto(new Date().toISOString().slice(0, 10));
+    setDataDoAcerto(hojeISO());
   }
 
   function confirmarEnvioDeAcerto(acerto: Acerto) {
@@ -229,8 +235,8 @@ export default function TelaLancamentos() {
     }
     if (!perfilId || !usuarioId) return;
 
-    enviarRepasse(
-      {
+    dispararEscrita(
+      enviarRepasse({
         perfilId,
         perfilNome: perfilAtivo?.nome || 'Perfil compartilhado',
         deUsuarioId: usuarioId,
@@ -240,11 +246,10 @@ export default function TelaLancamentos() {
         deContaId: contaDoAcerto,
         valor: valorNumerico,
         data: dataDoAcerto,
-      },
-      (erro) => {
+      }).catch((erro) => {
         console.error(erro);
         mostrarAlerta('Erro ao registrar', mensagemDeErroSalvar());
-      }
+      })
     );
     fecharFormularioDeAcerto();
   }
@@ -441,6 +446,37 @@ export default function TelaLancamentos() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* filtro por conta, no perfil secundario aparecem as suas contas do Pessoal */}
+      {contasSelecionaveis.length > 0 && (
+        <View style={[estilos.opcoes, { marginTop: 8 }]}>
+          <TouchableOpacity style={[estilos.opcaoPequena, !filtroContaId && estilos.opcaoSelecionada]} onPress={() => setFiltroContaId(null)}>
+            <Text style={[estilos.opcaoTexto, !filtroContaId && estilos.opcaoTextoSelecionado]}>Todas as contas</Text>
+          </TouchableOpacity>
+          {contasSelecionaveis.map((c) => (
+            <TouchableOpacity key={c.id} style={[estilos.opcaoPequena, filtroContaId === c.id && estilos.opcaoSelecionada]} onPress={() => setFiltroContaId(c.id)}>
+              <Text style={[estilos.opcaoTexto, filtroContaId === c.id && estilos.opcaoTextoSelecionado]}>{c.nome}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* categoria em dropdown porque pode ter muita */}
+      <View style={{ marginTop: 8 }}>
+        <SeletorDropdown
+          valor={filtroCategoriaId}
+          aoMudar={setFiltroCategoriaId}
+          itens={categorias.map((c) => ({ label: `${c.grupo} · ${c.nome}`, value: c.id }))}
+          placeholder="Todas as categorias"
+        />
+      </View>
+
+      <TextInput
+        style={estilos.input}
+        placeholder="Mês (AAAA-MM) — vazio mostra todos"
+        value={filtroMes}
+        onChangeText={setFiltroMes}
+      />
 
       {lancamentosFiltrados.length === 0 ? (
         <Text style={estilos.vazio}>Nenhum lançamento encontrado.</Text>

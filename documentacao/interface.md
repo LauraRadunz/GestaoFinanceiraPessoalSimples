@@ -5,8 +5,8 @@
 | Uso | Cor | Hex |
 |-----|-----|-----|
 | Fundo das telas | Branco | `#FFFFFF` |
-| Ação primária / destaque positivo | Verde | `#2ECC71` |
-| Ação secundária / navegação | Azul | `#2E7D9E` |
+| Ação primária (botões de salvar/confirmar) / navegação / seleção | Azul | `#2E7D9E` |
+| Receita / valor positivo / dinheiro recebido | Verde | `#2ECC71` |
 | Despesa / exclusão / alerta | Vermelho | `#E05C5C` |
 | Texto principal | Cinza-escuro | `#222222` |
 | Texto secundário | Cinza-médio | `#666666` |
@@ -30,8 +30,11 @@
   na mesma tela — sem navegar para uma tela separada de formulário.
 - Cartões (`Cartao*`) com cantos arredondados (8px), fundo cinza claro, e uma
   borda lateral colorida para indicar categoria/tipo quando fizer sentido.
-- Verde para receitas/valores positivos/dinheiro recebido, vermelho para
-  despesas/exclusão/dívida pendente, azul para ações neutras de navegação.
+- Azul para os botões principais ("Salvar...", "Confirmar envio"), chips
+  selecionados e links de navegação; verde para receitas/valores
+  positivos/dinheiro recebido (e para os botões "Aceitar" e confirmar
+  recebimento, que são dinheiro/acesso entrando); vermelho para
+  despesas/exclusão/dívida pendente.
 - Botões de ação primária sempre visíveis, com texto em maiúsculo-semântico
   claro ("Salvar conta", "Salvar lançamento", "Confirmar envio").
 - Alertas de confirmação (excluir) e erro (campo obrigatório) usam o utilitário

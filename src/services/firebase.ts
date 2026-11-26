@@ -21,7 +21,11 @@ export const app = initializeApp(firebaseConfig);
 // é o que permite testar duas contas ao mesmo tempo em abas normais
 // diferentes do mesmo navegador sem uma travar a sincronização da outra
 // (aba anônima já é isolada por padrão, não precisa disso pra ela).
+//
+// ignoreUndefinedProperties igual o do professor, sem isso meta sem prazo dava erro
+// com isso o campo vazio so nao é salvo
 export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
   }),
@@ -36,7 +40,6 @@ export const db = initializeFirestore(app, {
 // Se mesmo assim initializeAuth falhar (ex.: já foi chamado antes por
 // causa de Fast Refresh), caímos de volta para getAuth() puro.
 function inicializarAuth() {
-  console.log('[Auth] Plataforma detectada:', Platform.OS);
   if (Platform.OS !== 'web') {
     return getAuth(app);
   }

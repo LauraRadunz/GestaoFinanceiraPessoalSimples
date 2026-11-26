@@ -18,7 +18,7 @@ src/componentes/    (peças de UI reutilizáveis: cartões, cabeçalho, dropdown
 
 src/telas/ também chama diretamente:
    ▼
-src/services/       (um arquivo por entidade: listar, escutar, adicionar, atualizar, remover)
+src/services/       (um arquivo por entidade: escutar, adicionar, atualizar, remover)
    │  usa
    ▼
 src/services/firebase.ts   (conexão com o Firestore e com o Firebase Authentication)
@@ -85,8 +85,11 @@ conta e histórico:
    `RepasseService.enviarRepasse` grava o repasse como `pendente` e, ao
    mesmo tempo, lança de verdade uma **despesa** no perfil principal de
    quem enviou (categoria "Repasses enviados", criada sob demanda por
-   `CategoriaService.garantirCategoriaRepasse` — mesmo truque de ID
+   `CategoriaService.incluirCategoriaRepasseNoLote` — mesmo truque de ID
    determinístico do perfil "Pessoal", pra nunca duplicar essa categoria).
+   Essas três escritas (categoria, despesa e repasse) vão num único
+   **`writeBatch`** do Firestore: ou são gravadas todas juntas, ou nenhuma
+   — assim nunca fica uma despesa sem repasse ou um repasse sem despesa.
    É essa despesa — um lançamento comum, indistinguível de qualquer
    outro — que desconta o valor da conta; `calcularSaldoConta` não sabe
    nem precisa saber que existe repasse.
@@ -104,7 +107,8 @@ conta e histórico:
    conta própria o valor entrou e a data em que caiu. Só então
    `RepasseService.receberRepasse` lança de verdade uma **receita** no
    perfil principal de quem recebeu (categoria "Repasses recebidos",
-   mesma lógica de criação sob demanda) e marca o repasse como `recebido`.
+   mesma lógica de criação sob demanda) e marca o repasse como `recebido`
+   — também num único `writeBatch` (receita + mudança de status juntas).
 
 Essa divisão em duas etapas (a despesa é lançada na hora; a receita só
 quando confirmada) existe porque o app não tem como saber automaticamente
@@ -191,8 +195,17 @@ Pedaços de UI reaproveitados entre telas: `Cabecalho` (título + subtítulo),
 Um arquivo por entidade (ex: `ContaService.ts`, `PerfilService.ts`,
 `RepasseService.ts`), cada um com funções de CRUD e escuta. Por baixo,
 cada função chama o Firestore através de `services/firebase.ts`. Essa é a
-**única** camada que conhece o Firestore — as telas nunca chamam o
-Firestore diretamente.
+**única** camada que importa o `firebase.ts` — as telas, o contexto e o
+hook nunca falam com o Firebase diretamente (o usuário logado, por
+exemplo, vem de `AutenticacaoService.getUsuarioAtual`, no mesmo espírito
+do `getUsuarioLogado` do `SessaoService` do projeto de aula).
+
+Todas as funções de escrita são `async` e retornam uma `Promise`, igual
+ao modelo de aula (`adicionarX`, `atualizarX`, `removerX`). O
+`firebase.ts` cria o Firestore com `ignoreUndefinedProperties: true`
+(mesma configuração do projeto de aula), então campos opcionais vazios
+(ex.: prazo de uma meta) simplesmente não são gravados.
+
 
 ### 6. Tipos — `src/types/`
 Um arquivo por entidade, com o formato dos dados em TypeScript (`Conta`,
@@ -203,16 +216,20 @@ Um arquivo por entidade, com o formato dos dados em TypeScript (`Conta`,
 Funções puras sem estado: `calculos.ts` (saldo por conta, saldo total,
 resumo do mês, progresso de meta/orçamento, divisão de gastos e acertos),
 `formato.ts` (formatação de moeda e data), `alerta.ts` (alertas compatíveis
-com celular e navegador) e `limiteDeTempo.ts` (dispara escritas sem
-travar a UI esperando confirmação do servidor).
+com celular e navegador) e `limiteDeTempo.ts` (`dispararEscrita`: as
+telas chamam o service sem `await`, porque a promessa só termina quando
+o servidor confirma, mas o `onSnapshot` já mostra o dado na hora pelo
+cache local — então o formulário é liberado na hora e, se der erro,
+aparece um alerta). A exceção é criar um perfil novo, que usa `await`
+porque a tela precisa do id dele para já deixá-lo ativo.
 
 ## Padrão de nomenclatura
 - Pastas em minúsculo (`telas`, `componentes`, `services`, `utils`, `types`, `contexto`);
 - Telas com prefixo `Tela` em `PascalCase` (ex: `TelaContas.tsx`);
 - Componentes com prefixo do que representam (ex: `CartaoConta.tsx`);
 - Serviços com sufixo `Service` (ex: `ContaService.ts`), funções em
-  `camelCase` com verbo em português (`listar`, `adicionar`, `atualizar`,
-  `remover`, `escutar`, `enviar`, `receber`);
+  `camelCase` com verbo em português (`adicionar`, `atualizar`,
+  `remover`, `escutar`, `enviar`, `receber`, `aceitar`, `recusar`);
 - Variáveis de estilo chamadas `estilos` (não `styles`);
 - Tipos/interfaces em `PascalCase`, no singular (ex: `Conta`, `Lancamento`, `Repasse`).
 
